@@ -1,0 +1,12 @@
+name: sparse-tokens
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - scikit-learn
+  - pip:
+    - torchshow
+    - python-sensors
+    - patchify
