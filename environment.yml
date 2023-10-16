@@ -1,9 +1,12 @@
 name: sparse-tokens
 channels:
   - conda-forge
+  - pytorch
 dependencies:
   - python=3.10
   - pip
+  - pytorch
+  - torchvision
   - numpy
   - scikit-learn
   - pip:
