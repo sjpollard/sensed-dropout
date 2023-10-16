@@ -12,21 +12,23 @@ from pysensors.classification import SSPOC
 
 from patchify import patchify, unpatchify
 
-def get_CIFAR10(size):
+def get_CIFAR10(size=-1, train=True):
     CIFAR10 = torchvision.datasets.CIFAR10('dataset/', transform=transforms.Compose([
                                                        transforms.PILToTensor(),
-                                                       transforms.Grayscale()]))
+                                                       transforms.Grayscale()]), train=train)
+    if size == -1:
+        size = len(CIFAR10)
     dataloader = torch.utils.data.DataLoader(CIFAR10, batch_size=size)
     X, y = next(iter(dataloader))
     return X.numpy().squeeze(), y.numpy()
 
 def main():
-    X_train, y_train = get_CIFAR10(10)
+    X_train, y_train = get_CIFAR10(100)
 
     n, height, width = X_train.shape
 
     n_basis_modes = 10
-    l1_penalty = 0.1
+    l1_penalty = 0.00001
 
     basis = ps.basis.SVD(n_basis_modes=n_basis_modes)
 
