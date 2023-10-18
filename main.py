@@ -17,7 +17,7 @@ from patchify import patchify, unpatchify
 import argparse
 
 parser = argparse.ArgumentParser(
-    description="Tool to generate sparse pixel selections from computer vision datasets with pysensors.",
+    description="Tool to generate token masks via sparse pixel selections from computer vision datasets with pysensors.",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 parser.add_argument(
@@ -35,6 +35,11 @@ parser.add_argument(
     "--sensors", "-s",
     type=int,
     help="The number of sensors to select from the original features."
+)
+parser.add_argument(
+    "--patch", "-p",
+    type=int,
+    help="The size of the token patches to be selected."
 )
 parser.add_argument(
     "--show-basis",
@@ -55,7 +60,7 @@ parser.add_argument(
     help="If using SSPOC for classification, checks accuracy against train and test."
 )
 
-def get_CIFAR10(size=-1, train=True):
+def get_CIFAR10(size: int=-1, train: bool=True):
     CIFAR10 = torchvision.datasets.CIFAR10('dataset/', transform=transforms.Compose([
                                                        transforms.PILToTensor(),
                                                        transforms.Grayscale()]), train=train)
@@ -65,7 +70,7 @@ def get_CIFAR10(size=-1, train=True):
     X, y = next(iter(dataloader))
     return X.numpy().squeeze(), y.numpy()
 
-def fit_SSPOC(X_train, y_train, n_basis_modes, n_sensors, l1_penalty):
+def fit_SSPOC(X_train, y_train, n_basis_modes: int, n_sensors: int, l1_penalty: float):
     n, height, width = X_train.shape
 
     basis = ps.basis.SVD(n_basis_modes=n_basis_modes)
@@ -76,7 +81,7 @@ def fit_SSPOC(X_train, y_train, n_basis_modes, n_sensors, l1_penalty):
     print(f'{len(model.get_selected_sensors())} sensors selected out of {height * width}')
     return model
 
-def fit_SSPOR(X_train, n_basis_modes, n_sensors):
+def fit_SSPOR(X_train, n_basis_modes: int, n_sensors: int):
     n, height, width = X_train.shape
 
     basis = ps.basis.SVD(n_basis_modes=n_basis_modes)
@@ -105,6 +110,30 @@ def print_accuracies(model: SSPOC | SSPOR, X_train, y_train, n, height, width):
     y_pred = model.predict(np.reshape(X_test, (X_test.shape[0], height * width))[:,model.selected_sensors])
     print(f'Test accuracy: {accuracy_score(y_test, y_pred) * 100}%')
 
+def sensors_to_patches(model: SSPOC | SSPOR, patch: int, height: int, width: int):
+    patch_shape = (patch, patch)
+
+    sensors = np.zeros(height * width)
+    np.put(sensors, model.get_selected_sensors(), 1)
+    sensors = np.reshape(sensors, (height, width))
+
+    patched_sensors = patchify(sensors, patch_shape, step=patch)
+    return patched_sensors
+
+def patches_to_tokens(patched_sensors, patch: int, height: int, width: int):
+    patch_shape = (patch, patch)
+
+    tokens = np.zeros_like(patched_sensors)
+
+    token_indices = np.argwhere(np.sum(patched_sensors, axis=(2,3)) > 0)
+
+    for index in token_indices:
+        tokens[index[0]][index[1]] = np.ones(patch_shape)
+        
+    tokens = unpatchify(tokens, (height, width))
+
+    ts.show(tokens, mode='grayscale')
+
 def main(args):
     X_train, y_train = get_CIFAR10()
 
@@ -118,6 +147,9 @@ def main(args):
 
     if args.type == 'c' and args.print_accuracy:
         print_accuracies(model, X_train, y_train, n, height, width)
+
+    patched_sensors = sensors_to_patches(model, args.patch, height, width)
+    patches_to_tokens(patched_sensors, args.patch, height, width)
 
 if __name__ == "__main__":
     main(parser.parse_args())
