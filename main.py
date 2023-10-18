@@ -14,6 +14,19 @@ from pysensors.reconstruction import SSPOR
 
 from patchify import patchify, unpatchify
 
+import argparse
+
+parser = argparse.ArgumentParser(
+    description="Tool to generate sparse pixel selections from computer vision datasets with pysensors.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+)
+parser.add_argument(
+    "--type", "-t",
+    choices=["r", "c"],
+    default="r",
+    help="Determines whether pysensors uses SSPOR or SSPOC."
+)
+
 def get_CIFAR10(size=-1, train=True):
     CIFAR10 = torchvision.datasets.CIFAR10('dataset/', transform=transforms.Compose([
                                                        transforms.PILToTensor(),
@@ -64,21 +77,19 @@ def print_accuracies(model: SSPOC | SSPOR, X_train, y_train, n, height, width):
     y_pred = model.predict(np.reshape(X_test, (X_test.shape[0], height * width))[:,model.selected_sensors])
     print(f'Test accuracy: {accuracy_score(y_test, y_pred) * 100}%')
 
-def main():
+def main(args):
     X_train, y_train = get_CIFAR10()
 
     n, height, width = X_train.shape
 
-    model_r = fit_SSPOR(X_train, 100, 256)
-    model_c = fit_SSPOC(X_train, y_train, 100, 256, 0.0000005)
+    if args.type == 'r':
+        model = fit_SSPOR(X_train, 100, 256)
+    elif args.type == 'c':
+        model = fit_SSPOC(X_train, y_train, 100, 256, 0.0000005)
 
-    """ show_basis(model, height, width) """
-    show_sensors(model_r, height, width)
-    show_sensors(model_c, height, width)
+    show_basis(model, height, width)
+    show_sensors(model, height, width)
     """ print_accuracies(model, X_train, y_train, n, height, width) """
 
-
-
-
 if __name__ == "__main__":
-    main()
+    main(parser.parse_args())
