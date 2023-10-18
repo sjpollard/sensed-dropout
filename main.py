@@ -29,17 +29,17 @@ parser.add_argument(
 parser.add_argument(
     "--modes", "-m",
     type=int,
-    help="The number of modes to select when preparing the basis."
+    help="Number of modes to select when preparing the basis."
 )
 parser.add_argument(
     "--sensors", "-s",
     type=int,
-    help="The number of sensors to select from the original features."
+    help="Number of sensors to select from the original features."
 )
 parser.add_argument(
     "--patch", "-p",
     type=int,
-    help="The size of the token patches to be selected."
+    help="Size of the token patches to be selected."
 )
 parser.add_argument(
     "--show-basis",
