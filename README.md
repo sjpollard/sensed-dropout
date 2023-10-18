@@ -32,8 +32,6 @@ python main.py --type c --modes m --sensors s --patch p
 
 Displaying basis, sensors and tokens
 
-Selecting sensors with SSPOR
-
 ```
 python main.py ... --show-basis --show-sensors --show-tokens
 ```
