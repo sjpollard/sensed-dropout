@@ -26,6 +26,34 @@ parser.add_argument(
     default="r",
     help="Determines whether pysensors uses SSPOR or SSPOC."
 )
+parser.add_argument(
+    "--modes", "-m",
+    type=int,
+    help="The number of modes to select when preparing the basis."
+)
+parser.add_argument(
+    "--sensors", "-s",
+    type=int,
+    help="The number of sensors to select from the original features."
+)
+parser.add_argument(
+    "--show-basis",
+    default=False,
+    action='store_true',
+    help="Reshapes and displays up to 100 modes of the generated basis."
+)
+parser.add_argument(
+    "--show-sensors",
+    default=False,
+    action='store_true',
+    help="Reshapes and displays active sensor locations."
+)
+parser.add_argument(
+    "--print-accuracy",
+    default=False,
+    action='store_true',
+    help="If using SSPOC for classification, checks accuracy against train and test."
+)
 
 def get_CIFAR10(size=-1, train=True):
     CIFAR10 = torchvision.datasets.CIFAR10('dataset/', transform=transforms.Compose([
@@ -43,7 +71,7 @@ def fit_SSPOC(X_train, y_train, n_basis_modes, n_sensors, l1_penalty):
     basis = ps.basis.SVD(n_basis_modes=n_basis_modes)
 
     model = SSPOC(basis=basis, n_sensors=n_sensors, l1_penalty=l1_penalty)
-    model.fit(np.reshape(X_train, (n, height * width)), y_train)
+    model.fit(np.reshape(X_train, (n, height * width)), y_train, quiet=True)
     
     print(f'{len(model.get_selected_sensors())} sensors selected out of {height * width}')
     return model
@@ -54,7 +82,7 @@ def fit_SSPOR(X_train, n_basis_modes, n_sensors):
     basis = ps.basis.SVD(n_basis_modes=n_basis_modes)
 
     model = SSPOR(basis=basis, n_sensors=n_sensors)
-    model.fit(np.reshape(X_train, (n, height * width)))
+    model.fit(np.reshape(X_train, (n, height * width)), quiet=True)
     
     print(f'{len(model.get_selected_sensors())} sensors selected out of {height * width}')
     return model
@@ -82,14 +110,14 @@ def main(args):
 
     n, height, width = X_train.shape
 
-    if args.type == 'r':
-        model = fit_SSPOR(X_train, 100, 256)
-    elif args.type == 'c':
-        model = fit_SSPOC(X_train, y_train, 100, 256, 0.0000005)
+    if args.type == 'r': model = fit_SSPOR(X_train, args.modes, args.sensors)
+    elif args.type == 'c': model = fit_SSPOC(X_train, y_train, args.modes, args.sensors, 0.0000005)
 
-    show_basis(model, height, width)
-    show_sensors(model, height, width)
-    """ print_accuracies(model, X_train, y_train, n, height, width) """
+    if args.show_basis: show_basis(model, height, width)
+    if args.show_sensors: show_sensors(model, height, width)
+
+    if args.type == 'c' and args.print_accuracy:
+        print_accuracies(model, X_train, y_train, n, height, width)
 
 if __name__ == "__main__":
     main(parser.parse_args())
