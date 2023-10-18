@@ -44,6 +44,7 @@ python main.py ... --show-basis --show-sensors --show-tokens
 - `--modes, -m` (int): Number of modes to select when preparing the basis
 - `--sensors, -s` (int): Number of sensors to select from the original features
 - `--patch, -p` (int): Size of the token patches to be selected
+- `--tokens, -k` (int): Number of tokens to be selected
 - `--show-basis` (on/off): Reshapes and displays up to 100 modes of the generated basis
 - `--show-sensors` (on/off): Reshapes and displays active sensor locations
 - `--print-accuracy` (on/off): If using SSPOC for classification, checks accuracy against train and test

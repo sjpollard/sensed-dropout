@@ -42,6 +42,11 @@ parser.add_argument(
     help="Size of the token patches to be selected."
 )
 parser.add_argument(
+    "--tokens", "-k",
+    type=int,
+    help="Number of tokens to be selected."
+)
+parser.add_argument(
     "--show-basis",
     default=False,
     action='store_true',
@@ -68,7 +73,9 @@ parser.add_argument(
 def get_CIFAR10(size: int=-1, train: bool=True):
     CIFAR10 = torchvision.datasets.CIFAR10('dataset/', transform=transforms.Compose([
                                                        transforms.PILToTensor(),
-                                                       transforms.Grayscale()]), train=train)
+                                                       transforms.Grayscale(),
+                                                       transforms.Resize((128, 128), antialias=False)]),
+                                                       train=train)
     if size == -1:
         size = len(CIFAR10)
     dataloader = torch.utils.data.DataLoader(CIFAR10, batch_size=size)
@@ -125,8 +132,10 @@ def sensors_to_patches(model: SSPOC | SSPOR, patch: int, height: int, width: int
     patched_sensors = patchify(sensors, patch_shape, step=patch)
     return patched_sensors
 
-def patches_to_tokens(patched_sensors, patch: int, height: int, width: int):
-    token_indices = np.argwhere(np.sum(patched_sensors, axis=(2,3)) > 0)
+def patches_to_tokens(patched_sensors, patch: int, k: int, height: int, width: int):
+    patch_sums = np.sum(patched_sensors, axis=(2,3))
+
+    token_indices = np.column_stack(np.unravel_index(np.argsort(patch_sums.ravel())[:-k-1:-1], patch_sums.shape))
 
     print(f'{len(token_indices)} tokens chosen out of {patched_sensors.shape[0] * patched_sensors.shape[1]}')
     return token_indices
@@ -144,7 +153,7 @@ def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: 
     ts.show(tokens, mode='grayscale')
 
 def main(args):
-    X_train, y_train = get_CIFAR10()
+    X_train, y_train = get_CIFAR10(10000)
 
     n, height, width = X_train.shape
 
@@ -158,7 +167,7 @@ def main(args):
         print_accuracies(model, X_train, y_train, n, height, width)
 
     patched_sensors = sensors_to_patches(model, args.patch, height, width)
-    token_indices = patches_to_tokens(patched_sensors, args.patch, height, width)
+    token_indices = patches_to_tokens(patched_sensors, args.patch, args.tokens, height, width)
 
     if args.show_tokens: show_tokens(patched_sensors, token_indices, args.patch, height, width)
 
