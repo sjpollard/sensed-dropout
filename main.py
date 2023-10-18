@@ -59,7 +59,12 @@ parser.add_argument(
     action='store_true',
     help="If using SSPOC for classification, checks accuracy against train and test."
 )
-
+parser.add_argument(
+    "--show-tokens",
+    default=False,
+    action='store_true',
+    help="Reshapes and displays active token locations."
+)
 def get_CIFAR10(size: int=-1, train: bool=True):
     CIFAR10 = torchvision.datasets.CIFAR10('dataset/', transform=transforms.Compose([
                                                        transforms.PILToTensor(),
@@ -121,15 +126,19 @@ def sensors_to_patches(model: SSPOC | SSPOR, patch: int, height: int, width: int
     return patched_sensors
 
 def patches_to_tokens(patched_sensors, patch: int, height: int, width: int):
+    token_indices = np.argwhere(np.sum(patched_sensors, axis=(2,3)) > 0)
+
+    print(f'{len(token_indices)} tokens chosen out of {patched_sensors.shape[0] * patched_sensors.shape[1]}')
+    return token_indices
+
+def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: int):
     patch_shape = (patch, patch)
 
     tokens = np.zeros_like(patched_sensors)
 
-    token_indices = np.argwhere(np.sum(patched_sensors, axis=(2,3)) > 0)
-
     for index in token_indices:
         tokens[index[0]][index[1]] = np.ones(patch_shape)
-        
+
     tokens = unpatchify(tokens, (height, width))
 
     ts.show(tokens, mode='grayscale')
@@ -149,7 +158,9 @@ def main(args):
         print_accuracies(model, X_train, y_train, n, height, width)
 
     patched_sensors = sensors_to_patches(model, args.patch, height, width)
-    patches_to_tokens(patched_sensors, args.patch, height, width)
+    token_indices = patches_to_tokens(patched_sensors, args.patch, height, width)
+
+    if args.show_tokens: show_tokens(patched_sensors, token_indices, args.patch, height, width)
 
 if __name__ == "__main__":
     main(parser.parse_args())
