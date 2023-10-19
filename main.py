@@ -78,7 +78,7 @@ def get_CIFAR10(size: int=-1, train: bool=True):
                                                        train=train)
     if size == -1:
         size = len(CIFAR10)
-    dataloader = torch.utils.data.DataLoader(CIFAR10, batch_size=size)
+    dataloader = torch.utils.data.DataLoader(CIFAR10, batch_size=size, num_workers=8)
     X, y = next(iter(dataloader))
     return X.numpy().squeeze(), y.numpy()
 
@@ -153,7 +153,7 @@ def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: 
     ts.show(tokens, mode='grayscale')
 
 def main(args):
-    X_train, y_train = get_CIFAR10(10000)
+    X_train, y_train = get_CIFAR10(25000)
 
     n, height, width = X_train.shape
 
