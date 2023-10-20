@@ -21,6 +21,12 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 parser.add_argument(
+    "--download", "-d",
+    default=False,
+    action='store_true',
+    help="Downloads the dataset from torchvision."
+)
+parser.add_argument(
     "--type", "-t",
     choices=["r", "c"],
     default="r",
@@ -70,12 +76,13 @@ parser.add_argument(
     action='store_true',
     help="Reshapes and displays active token locations."
 )
-def get_CIFAR10(size: int=-1, train: bool=True):
+def get_CIFAR10(size: int=-1, train: bool=True, download: bool=False):
     CIFAR10 = torchvision.datasets.CIFAR10('dataset/', transform=transforms.Compose([
                                                        transforms.PILToTensor(),
                                                        transforms.Grayscale(),
                                                        transforms.Resize((128, 128), antialias=False)]),
-                                                       train=train)
+                                                       train=train,
+                                                       download=download)
     if size == -1:
         size = len(CIFAR10)
     dataloader = torch.utils.data.DataLoader(CIFAR10, batch_size=size, num_workers=8)
@@ -153,7 +160,7 @@ def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: 
     ts.show(tokens, mode='grayscale')
 
 def main(args):
-    X_train, y_train = get_CIFAR10(25000)
+    X_train, y_train = get_CIFAR10(25000, download=args.download)
 
     n, height, width = X_train.shape
 
