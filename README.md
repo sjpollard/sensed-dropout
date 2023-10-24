@@ -21,25 +21,27 @@ conda env create -f environment.yml
 Selecting sensors with SSPOR
 
 ```
-python main.py --type r --modes m --sensors s --patch p
+python tokens.py --type r --modes m --sensors s --patch p
 ```
 
 Selecting sensors with SSPOC
 
 ```
-python main.py --type c --modes m --sensors s --patch p
+python tokens.py --type c --modes m --sensors s --patch p
 ```
 
 Displaying basis, sensors and tokens
 
 ```
-python main.py ... --show-basis --show-sensors --show-tokens
+python tokens.py ... --show-basis --show-sensors --show-tokens
 ```
 
 ## Arguments
 
 ### main.py
 
+- `--num, -n` (int): Number of values to process from the dataset.
+- `--download, -d` (on/off): Downloads the dataset from torchvision.
 - `--type, -t` (str): `'r'` or `'c'` depending on whether a SSPOR or SSPOC model should be used
 - `--modes, -m` (int): Number of modes to select when preparing the basis
 - `--sensors, -s` (int): Number of sensors to select from the original features

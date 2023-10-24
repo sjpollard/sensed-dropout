@@ -16,9 +16,17 @@ from patchify import patchify, unpatchify
 
 import argparse
 
+import data
+
 parser = argparse.ArgumentParser(
     description="Tool to generate token masks via sparse pixel selections from computer vision datasets with pysensors.",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+)
+parser.add_argument(
+    "--num", "-n",
+    default=-1,
+    type=int,
+    help="Number of values to process from the dataset."
 )
 parser.add_argument(
     "--download", "-d",
@@ -76,18 +84,6 @@ parser.add_argument(
     action='store_true',
     help="Reshapes and displays active token locations."
 )
-def get_CIFAR10(size: int=-1, train: bool=True, download: bool=False):
-    CIFAR10 = torchvision.datasets.CIFAR10('dataset/', transform=transforms.Compose([
-                                                       transforms.PILToTensor(),
-                                                       transforms.Grayscale(),
-                                                       transforms.Resize((128, 128), antialias=False)]),
-                                                       train=train,
-                                                       download=download)
-    if size == -1:
-        size = len(CIFAR10)
-    dataloader = torch.utils.data.DataLoader(CIFAR10, batch_size=size, num_workers=8)
-    X, y = next(iter(dataloader))
-    return X.numpy().squeeze(), y.numpy()
 
 def fit_SSPOC(X_train, y_train, n_basis_modes: int, n_sensors: int, l1_penalty: float):
     n, height, width = X_train.shape
@@ -121,8 +117,10 @@ def show_sensors(model: SSPOC | SSPOR, height: int, width: int):
     ts.show(np.reshape(sensors, (height, width)), mode='grayscale')
 
 def print_accuracies(model: SSPOC | SSPOR, X_train, y_train, n, height, width):
-    X_test, y_test = get_CIFAR10(train=False)
-
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, train=False)
+    X_test, y_test = next(iter(dataloader))
+    X_test = X_test.numpy().squeeze()
+    y_test = y_test.numpy()
     y_pred = model.predict(np.reshape(X_train, (n, height * width))[:,model.selected_sensors])
     print(f'Train accuracy: {accuracy_score(y_train, y_pred) * 100}%')
 
@@ -160,7 +158,9 @@ def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: 
     ts.show(tokens, mode='grayscale')
 
 def main(args):
-    X_train, y_train = get_CIFAR10(25000, download=args.download)
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, args.num, download=args.download)
+    X_train, y_train = next(iter(dataloader))
+    X_train, y_train = X_train.numpy().squeeze(), y_train.numpy() 
 
     n, height, width = X_train.shape
 
