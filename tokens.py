@@ -117,7 +117,7 @@ def show_sensors(model: SSPOC | SSPOR, height: int, width: int):
     ts.show(np.reshape(sensors, (height, width)), mode='grayscale')
 
 def print_accuracies(model: SSPOC | SSPOR, X_train, y_train, n, height, width):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, train=False)
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, train=False, greyscale=True)
     X_test, y_test = next(iter(dataloader))
     X_test = X_test.numpy().squeeze()
     y_test = y_test.numpy()
@@ -158,7 +158,7 @@ def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: 
     ts.show(tokens, mode='grayscale')
 
 def main(args):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, args.num, download=args.download)
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, args.num, download=args.download, greyscale=True)
     X_train, y_train = next(iter(dataloader))
     X_train, y_train = X_train.numpy().squeeze(), y_train.numpy() 
 
