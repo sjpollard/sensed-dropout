@@ -1,10 +1,11 @@
 #!/bin/bash
 
 #SBATCH --job-name=test
-#SBATCH --partition=test
+#SBATCH --partition=gpu_veryshort
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=8
+#SBATCH --gres=gpu:1
 #SBATCH --output=run.out
-#SBATCH --time=0:10:00
+#SBATCH --time=1:00:00
 
-conda run -n sparse-tokens python main.py -t r -m 100 -s 32 -p 16 -k 8
+#conda run -n sparse-tokens python tokens.py -t r -m 100 -s 32 -p 16 -k 8
+conda run -n sparse-tokens python train.py --model vit_b_16 --epochs 1 --batch-size 64 --opt adamw --lr 0.003 --device cuda
