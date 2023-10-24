@@ -177,6 +177,6 @@ def main(args):
     token_indices = patches_to_tokens(patched_sensors, args.patch, args.tokens, height, width)
 
     if args.show_tokens: show_tokens(patched_sensors, token_indices, args.patch, height, width)
-
+    
 if __name__ == "__main__":
     main(parser.parse_args())

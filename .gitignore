@@ -1,2 +1,3 @@
 dataset
 *.out
+*/__pycache__
