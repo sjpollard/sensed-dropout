@@ -18,7 +18,6 @@ parser = argparse.ArgumentParser(
     description="ViT training with PyTorch",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("--data-path", default="/datasets01/imagenet_full_size/061417/", type=str, help="dataset path")
 parser.add_argument("--model", default="resnet18", type=str, help="model name")
 parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
 parser.add_argument(
@@ -61,8 +60,6 @@ parser.add_argument(
 parser.add_argument(
     "--label-smoothing", default=0.0, type=float, help="label smoothing (default: 0.0)", dest="label_smoothing"
 )
-parser.add_argument("--mixup-alpha", default=0.0, type=float, help="mixup alpha (default: 0.0)")
-parser.add_argument("--cutmix-alpha", default=0.0, type=float, help="cutmix alpha (default: 0.0)")
 parser.add_argument("--lr-scheduler", default="steplr", type=str, help="the lr scheduler (default: steplr)")
 parser.add_argument("--lr-warmup-epochs", default=0, type=int, help="the number of epochs to warmup (default: 0)")
 parser.add_argument(
@@ -77,12 +74,6 @@ parser.add_argument("--output-dir", default=".", type=str, help="path to save ou
 parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
 parser.add_argument("--start-epoch", default=0, type=int, metavar="N", help="start epoch")
 parser.add_argument(
-    "--cache-dataset",
-    dest="cache_dataset",
-    help="Cache the datasets for quicker initialization. It also serializes the transforms",
-    action="store_true",
-)
-parser.add_argument(
     "--sync-bn",
     dest="sync_bn",
     help="Use sync batch norm",
@@ -94,10 +85,6 @@ parser.add_argument(
     help="Only test the model",
     action="store_true",
 )
-parser.add_argument("--auto-augment", default=None, type=str, help="auto augment policy (default: None)")
-parser.add_argument("--ra-magnitude", default=9, type=int, help="magnitude of auto augment policy")
-parser.add_argument("--augmix-severity", default=3, type=int, help="severity of augmix policy")
-parser.add_argument("--random-erase", default=0.0, type=float, help="random erasing probability (default: 0.0)")
 # Mixed precision training parameters
 parser.add_argument("--amp", action="store_true", help="Use torch.cuda.amp for mixed precision training")
 # distributed training parameters
@@ -121,26 +108,8 @@ parser.add_argument(
 parser.add_argument(
     "--use-deterministic-algorithms", action="store_true", help="Forces the use of deterministic algorithms only."
 )
-parser.add_argument(
-    "--interpolation", default="bilinear", type=str, help="the interpolation method (default: bilinear)"
-)
-parser.add_argument(
-    "--val-resize-size", default=256, type=int, help="the resize size used for validation (default: 256)"
-)
-parser.add_argument(
-    "--val-crop-size", default=224, type=int, help="the central crop size used for validation (default: 224)"
-)
-parser.add_argument(
-    "--train-crop-size", default=224, type=int, help="the random crop size used for training (default: 224)"
-)
 parser.add_argument("--clip-grad-norm", default=None, type=float, help="the maximum gradient norm (default None)")
-parser.add_argument("--ra-sampler", action="store_true", help="whether to use Repeated Augmentation in training")
-parser.add_argument(
-    "--ra-reps", default=3, type=int, help="number of repetitions for Repeated Augmentation (default: 3)"
-)
 parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
-parser.add_argument("--backend", default="PIL", type=str.lower, help="PIL or tensor - case insensitive")
-parser.add_argument("--use-v2", action="store_true", help="Use V2 transforms")
 
 def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None):
     model.train()
