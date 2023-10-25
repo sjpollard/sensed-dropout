@@ -158,9 +158,7 @@ def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: 
     ts.show(tokens, mode='grayscale')
 
 def main(args):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, args.num, download=args.download, greyscale=True)
-    X_train, y_train = next(iter(dataloader))
-    X_train, y_train = X_train.numpy().squeeze(), y_train.numpy() 
+    X_train, y_train = data.get_dataset_as_numpy(torchvision.datasets.CIFAR10, args.num, download=args.download, greyscale=True)
 
     n, height, width = X_train.shape
 

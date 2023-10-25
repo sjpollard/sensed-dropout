@@ -25,7 +25,7 @@ parser.add_argument(
 )
 parser.add_argument("--epochs", default=90, type=int, metavar="N", help="number of total epochs to run")
 parser.add_argument(
-    "-j", "--workers", default=16, type=int, metavar="N", help="number of data loading workers (default: 16)"
+    "-j", "--workers", default=1, type=int, metavar="N", help="number of data loading workers (default: 1)"
 )
 parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
 parser.add_argument("--lr", default=0.1, type=float, help="initial learning rate")
@@ -196,7 +196,6 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     return metric_logger.acc1.global_avg
 
 def main(args):
-    print("Hello")
     if args.output_dir:
         utils.mkdir(args.output_dir)
 
@@ -211,8 +210,8 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    train_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size)
-    test_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False)
+    train_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, num_workers=args.workers, distributed=args.distributed)
+    test_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, num_workers=args.workers, distributed=args.distributed)
 
     num_classes = len(train_dataloader.dataset.classes)
 
