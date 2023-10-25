@@ -2,13 +2,15 @@ name: sparse-tokens
 channels:
   - conda-forge
   - pytorch
+  - nvidia
 dependencies:
   - python=3.10
   - pip
-  - pytorch
-  - torchvision
   - numpy
   - scikit-learn
+  - pytorch=*=*cuda*
+  - torchvision
+  - pytorch-cuda=11.8
   - pip:
     - torchshow
     - python-sensors
