@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#SBATCH --job-name=run_tokens
+#SBATCH --partition=gpu_veryshort
+#SBATCH --nodes=1
+#SBATCH --gres=gpu:1
+#SBATCH --output=run_tokens.out
+#SBATCH --time=0:10:00
+
+source /sw/languages/anaconda/anaconda.3.9.13-2022-torch-cuda-11.7.0/etc/profile.d/conda.sh
+conda activate sparse-tokens
+python tokens.py -n 100 -t r -m 100 -s 32 -p 16 -k 8
