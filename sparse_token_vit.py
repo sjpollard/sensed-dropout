@@ -6,6 +6,8 @@ import torch.nn as nn
 from functools import partial
 from typing import Any, Optional, List, Callable
 
+import torchshow as ts
+
 class SparseTokenVisionTransformer(VisionTransformer):
 
     def __init__(
@@ -39,12 +41,12 @@ class SparseTokenVisionTransformer(VisionTransformer):
         )
         
         self.token_mask = token_mask
-        self.seq_length = torch.sum(token_mask) + 1
+        self.seq_length = torch.sum(token_mask).item() + 1
 
         self.encoder = torchvision.models.vision_transformer.Encoder(
             self.seq_length,
-            self.num_layers,
-            self.num_heads,
+            num_layers,
+            num_heads,
             self.hidden_dim,
             self.mlp_dim,
             self.dropout,
@@ -75,43 +77,49 @@ class SparseTokenVisionTransformer(VisionTransformer):
 
         return x
 
-def _vision_transformer(
+def _sparse_token_vision_transformer(
     patch_size: int,
     num_layers: int,
     num_heads: int,
     hidden_dim: int,
     mlp_dim: int,
+    token_mask: torch.Tensor,
+    weights,
     progress: bool,
     **kwargs: Any,
-) -> VisionTransformer:
+) -> SparseTokenVisionTransformer:
     image_size = kwargs.pop("image_size", 224)
 
-    model = VisionTransformer(
+    model = SparseTokenVisionTransformer(
         image_size=image_size,
         patch_size=patch_size,
         num_layers=num_layers,
         num_heads=num_heads,
         hidden_dim=hidden_dim,
         mlp_dim=mlp_dim,
+        token_mask=token_mask,
         **kwargs,
     )
 
     return model
 
-def sparse_token_vit_b_16(*, progress: bool = True, **kwargs: Any) -> VisionTransformer:
-    return _vision_transformer(
+def sparse_token_vit_b_16(*, token_mask: torch.Tensor, weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenVisionTransformer:
+    return _sparse_token_vision_transformer(
         patch_size=16,
         num_layers=12,
         num_heads=12,
         hidden_dim=768,
         mlp_dim=3072,
-        weights=None,
+        token_mask=token_mask,
+        weights=weights,
         progress=progress,
         **kwargs,
     )
 
 def main():
-    model = sparse_token_vit_b_16(image_size=128, num_classes=10)
-
+    x = torch.normal(0, 1, (2, 3, 128, 128))
+    ts.show(x)
+    mask = torch.ones((8, 8), dtype=bool)
+    model = sparse_token_vit_b_16(token_mask=mask, image_size=128, num_classes=10)    
 if __name__ == "__main__":
     main()
