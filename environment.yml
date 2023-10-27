@@ -8,6 +8,7 @@ dependencies:
   - pip
   - numpy
   - scikit-learn
+  - wandb
   - pytorch=2.1
   - torchvision=0.16
   - pytorch-cuda=11.8

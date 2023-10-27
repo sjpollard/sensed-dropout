@@ -39,7 +39,7 @@ class SparseTokenVisionTransformer(VisionTransformer):
         )
         
         self.token_mask = token_mask
-        self.seq_length = torch.sum(token_mask).item() + 1
+        self.seq_length = torch.sum(token_mask, dtype=int).item() + 1
 
         self.encoder = torchvision.models.vision_transformer.Encoder(
             self.seq_length,
@@ -65,14 +65,14 @@ class SparseTokenVisionTransformer(VisionTransformer):
         # (n, hidden_dim, n_h, n_w) -> (n, hidden_dim, (n_h * n_w))
         x = x.reshape(n, self.hidden_dim, n_h * n_w)
 
-        x = x[:, :, self.token_mask.flatten()].detach().clone()
+        x = x[:, :, self.token_mask.flatten()]
 
         # (n, hidden_dim, (n_h * n_w)) -> (n, (n_h * n_w), hidden_dim)
         # The self attention layer expects inputs in the format (N, S, E)
         # where S is the source sequence length, N is the batch size, E is the
         # embedding dimension
         x = x.permute(0, 2, 1)
-
+        
         return x
 
 def _sparse_token_vision_transformer(

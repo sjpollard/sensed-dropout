@@ -221,10 +221,9 @@ def main(args):
     if args.model != 'sparse_token_vit_b_16':
         model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes)
     else:
-        token_mask = torch.bernoulli(torch.full((8, 8), 0.5))
+        token_mask = torch.repeat_interleave(torch.tensor([False, True]), torch.tensor([32, 32])).reshape((8, 8))
         model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes)
     model.to(device)
-    print(model)
 
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
