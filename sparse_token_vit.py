@@ -6,8 +6,6 @@ import torch.nn as nn
 from functools import partial
 from typing import Any, Optional, List, Callable
 
-import torchshow as ts
-
 class SparseTokenVisionTransformer(VisionTransformer):
 
     def __init__(
@@ -115,11 +113,3 @@ def sparse_token_vit_b_16(*, token_mask: torch.Tensor, weights = None, progress:
         progress=progress,
         **kwargs,
     )
-
-def main():
-    x = torch.normal(0, 1, (2, 3, 128, 128))
-    ts.show(x)
-    mask = torch.ones((8, 8), dtype=bool)
-    model = sparse_token_vit_b_16(token_mask=mask, image_size=128, num_classes=10)    
-if __name__ == "__main__":
-    main()
