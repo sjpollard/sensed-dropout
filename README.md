@@ -50,7 +50,12 @@ python tokens.py ... --show-basis --show-sensors --show-tokens
 - `--show-basis` (on/off): Reshapes and displays up to 100 modes of the generated basis
 - `--show-sensors` (on/off): Reshapes and displays active sensor locations
 - `--print-accuracy` (on/off): If using SSPOC for classification, checks accuracy against train and test
-- `--show-tokens` (on/off): Reshapes and displays active token locations
+- `--show-tokens` (on/off): Reshapes and displays active token locations'
+- `--output, -o` (str): Name of saved output file.
+
+### train.py
+
+-
 
 ## Acknowledgements
 This project borrows ideas and/or code from the following preceding works:

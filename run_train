@@ -4,7 +4,7 @@
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=2
-#SBATCH --output=run_train_50.out
+#SBATCH --output=run_train_12_5.out
 #SBATCH --time=1:00:00
 
 source /sw/languages/anaconda/anaconda.3.9.13-2022-torch-cuda-11.7.0/etc/profile.d/conda.sh

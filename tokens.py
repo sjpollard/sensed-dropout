@@ -1,11 +1,9 @@
 import torch
 import torchvision.datasets
-from torchvision import transforms
 import torchshow as ts
 
 import numpy as np
 
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
 import pysensors as ps
@@ -84,6 +82,12 @@ parser.add_argument(
     action='store_true',
     help="Reshapes and displays active token locations."
 )
+parser.add_argument(
+    "--output", "-o",
+    default='',
+    type=str,
+    help="Name of saved output file."
+)
 
 def fit_SSPOC(X_train, y_train, n_basis_modes: int, n_sensors: int, l1_penalty: float):
     n, height, width = X_train.shape
@@ -137,18 +141,22 @@ def sensors_to_patches(model: SSPOC | SSPOR, patch: int, height: int, width: int
     patched_sensors = patchify(sensors, patch_shape, step=patch)
     return patched_sensors
 
-def patches_to_tokens(patched_sensors, patch: int, k: int, height: int, width: int):
+def patches_to_tokens(patched_sensors: np.ndarray, k: int):
     patch_sums = np.sum(patched_sensors, axis=(2,3))
 
-    token_indices = np.column_stack(np.unravel_index(np.argsort(patch_sums.ravel())[:-k-1:-1], patch_sums.shape))
+    token_mask = np.zeros((patch_sums.shape[0] * patch_sums.shape[1]), dtype=bool)
+    token_mask[np.argsort(patch_sums.ravel())[:-k-1:-1]] = True
+    token_mask = token_mask.reshape((patch_sums.shape))
 
-    print(f'{len(token_indices)} tokens chosen out of {patched_sensors.shape[0] * patched_sensors.shape[1]}')
-    return token_indices
+    print(f'{int(np.sum(token_mask))} tokens chosen out of {patched_sensors.shape[0] * patched_sensors.shape[1]}')
+    return token_mask
 
-def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: int):
+def show_tokens(patched_sensors: np.ndarray, token_mask: np.ndarray, patch: int, height: int, width: int):
     patch_shape = (patch, patch)
 
     tokens = np.zeros_like(patched_sensors)
+    
+    token_indices = np.argwhere(token_mask)
 
     for index in token_indices:
         tokens[index[0]][index[1]] = np.ones(patch_shape)
@@ -156,6 +164,9 @@ def show_tokens(patched_sensors, token_indices, patch: int, height: int, width: 
     tokens = unpatchify(tokens, (height, width))
 
     ts.show(tokens, mode='grayscale')
+
+def save_mask(token_mask: np.ndarray, output):
+    torch.save(token_mask.from_numpy(), f'token_masks/{output}.pt')
 
 def main(args):
     X_train, y_train = data.get_dataset_as_numpy(torchvision.datasets.CIFAR10, args.num, download=args.download, greyscale=True)
@@ -172,9 +183,11 @@ def main(args):
         print_accuracies(model, X_train, y_train, n, height, width)
 
     patched_sensors = sensors_to_patches(model, args.patch, height, width)
-    token_indices = patches_to_tokens(patched_sensors, args.patch, args.tokens, height, width)
+    token_mask = patches_to_tokens(patched_sensors, args.tokens)
 
-    if args.show_tokens: show_tokens(patched_sensors, token_indices, args.patch, height, width)
+    if args.show_tokens: show_tokens(patched_sensors, token_mask, args.patch, height, width)
     
+    if args.output != '': save_mask(token_mask, args.output)
+
 if __name__ == "__main__":
     main(parser.parse_args())
