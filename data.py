@@ -1,3 +1,5 @@
+import os
+
 import torch
 from torchvision import transforms
 from torchvision.datasets import VisionDataset
@@ -10,7 +12,8 @@ def get_dataset_as_numpy(vision_dataset: VisionDataset, batch_size: int=-1, trai
     else:
         transform = transforms.Compose([transforms.ToTensor(),
                                         transforms.Resize((128, 128), antialias=False)])
-        
+    if not os.path.exists(f'datasets'):
+            os.makedirs(f'datasets')    
     dataset = vision_dataset(f'datasets/{vision_dataset.__name__}', transform=transform, train=train, download=download)
     if batch_size == -1:
         batch_size = len(dataset)
@@ -26,7 +29,8 @@ def get_dataloader(vision_dataset: VisionDataset, batch_size: int=-1, train: boo
     else:
         transform = transforms.Compose([transforms.ToTensor(),
                                         transforms.Resize((128, 128), antialias=False)])
-        
+    if not os.path.exists(f'datasets'):
+            os.makedirs(f'datasets')
     dataset = vision_dataset(f'datasets/{vision_dataset.__name__}', transform=transform, train=train, download=download)
     if batch_size == -1:
         batch_size = len(dataset)

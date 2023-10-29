@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torchvision.datasets
 import torchshow as ts
@@ -166,7 +168,9 @@ def show_tokens(patched_sensors: np.ndarray, token_mask: np.ndarray, patch: int,
     ts.show(tokens, mode='grayscale')
 
 def save_mask(token_mask: np.ndarray, output):
-    torch.save(token_mask.from_numpy(), f'token_masks/{output}.pt')
+    if not os.path.exists(f'token_masks'):
+            os.makedirs(f'token_masks')
+    torch.save(torch.from_numpy(token_mask), f'token_masks/{output}.pt')
 
 def main(args):
     X_train, y_train = data.get_dataset_as_numpy(torchvision.datasets.CIFAR10, args.num, download=args.download, greyscale=True)
