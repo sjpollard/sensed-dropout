@@ -21,6 +21,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--model", default="resnet18", type=str, help="model name")
+parser.add_argument("--token-mask", default='', type=str, help="Name of the saved token mask to train with.")
 parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
 parser.add_argument(
     "-b", "--batch-size", default=32, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -221,7 +222,7 @@ def main(args):
     if args.model != 'sparse_token_vit_b_16':
         model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes)
     else:
-        token_mask = torch.repeat_interleave(torch.tensor([False, True]), torch.tensor([56, 8])).reshape((8, 8))
+        token_mask = torch.load(f'token_masks/{args.token_mask}.pt')
         model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes)
     model.to(device)
 
