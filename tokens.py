@@ -52,11 +52,13 @@ parser.add_argument(
 )
 parser.add_argument(
     "--patch", "-p",
+    default=0,
     type=int,
     help="Size of the token patches to be selected."
 )
 parser.add_argument(
     "--tokens", "-k",
+    default=0,
     type=int,
     help="Number of tokens to be selected."
 )
@@ -86,9 +88,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--output", "-o",
-    default='',
-    type=str,
-    help="Name of saved output file."
+    default=False,
+    action='store_true',
+    help="Saves outputs to file."
 )
 
 def fit_SSPOC(X_train, y_train, n_basis_modes: int, n_sensors: int, l1_penalty: float):
@@ -167,10 +169,20 @@ def show_tokens(patched_sensors: np.ndarray, token_mask: np.ndarray, patch: int,
 
     ts.show(tokens, mode='grayscale')
 
-def save_mask(token_mask: np.ndarray, output):
+def save_output(args, model : SSPOC | SSPOR, height: int, width: int, token_mask: np.ndarray):
+    n = 100
+    filename = f'n_{args.num}_t_{args.type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
     if not os.path.exists(f'token_masks'):
             os.makedirs(f'token_masks')
-    torch.save(torch.from_numpy(token_mask), f'token_masks/{output}.pt')
+    
+    modes = model.basis.matrix_representation().shape[1]
+    ts.save(np.reshape(model.basis.matrix_representation().T, (modes, height, width))[:n], f'token_masks/{filename}/modes_{filename}.jpg', mode='grayscale')
+
+    sensors = np.zeros(height * width)
+    np.put(sensors, model.get_selected_sensors(), 1)
+    ts.save(np.reshape(sensors, (height, width)), f'token_masks/{filename}/sensors_{filename}.jpg', mode='grayscale')
+
+    torch.save(torch.from_numpy(token_mask), f'token_masks/{filename}/token_mask_{filename}.pt')
 
 def main(args):
     X_train, y_train = data.get_dataset_as_numpy(torchvision.datasets.CIFAR10, args.num, download=args.download, greyscale=True)
@@ -186,12 +198,12 @@ def main(args):
     if args.type == 'c' and args.print_accuracy:
         print_accuracies(model, X_train, y_train, n, height, width)
 
-    patched_sensors = sensors_to_patches(model, args.patch, height, width)
-    token_mask = patches_to_tokens(patched_sensors, args.tokens)
+    if args.patch != 0: patched_sensors = sensors_to_patches(model, args.patch, height, width)
+    if args.tokens != 0: token_mask = patches_to_tokens(patched_sensors, args.tokens)
 
     if args.show_tokens: show_tokens(patched_sensors, token_mask, args.patch, height, width)
     
-    if args.output != '': save_mask(token_mask, args.output)
+    if args.output: save_output(args, model, height, width, token_mask)
 
 if __name__ == "__main__":
     main(parser.parse_args())

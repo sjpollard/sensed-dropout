@@ -243,7 +243,7 @@ def main(args):
     if args.model != 'sparse_token_vit_b_16':
         model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes)
     else:
-        token_mask = torch.load(f'token_masks/{args.token_mask}.pt')
+        token_mask = torch.load(f'token_masks/{args.token_mask}/token_mask_{args.token_mask}.pt')
         model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes)
     model.to(device)
 
