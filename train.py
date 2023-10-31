@@ -192,7 +192,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_freq=0, 
     outputs = torch.cat(outputs)
 
     total_acc1, total_acc5 = utils.accuracy(outputs, targets, topk=(1, 5))
-    if torch.distributed.get_rank() == 0 and log_freq != 0:
+    if torch.distributed.get_rank() == 0 and log_freq != 0 and log_suffix == '':
             wandb.log({'test/accuracy': total_acc1.item(),
                        'test/avg_loss': total_loss / len(data_loader)})
 
