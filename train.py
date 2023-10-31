@@ -10,6 +10,8 @@ import torchvision.transforms
 import utils
 from torch import nn
 
+import wandb
+
 import argparse
 
 import data
@@ -73,6 +75,7 @@ parser.add_argument("--lr-step-size", default=30, type=int, help="decrease lr ev
 parser.add_argument("--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma")
 parser.add_argument("--lr-min", default=0.0, type=float, help="minimum lr of lr schedule (default: 0.0)")
 parser.add_argument("--print-freq", default=10, type=int, help="print frequency")
+parser.add_argument("--log-freq", default=0, type=int, help="log frequency")
 parser.add_argument("--output-dir", default=".", type=str, help="path to save outputs")
 parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
 parser.add_argument("--start-epoch", default=0, type=int, metavar="N", help="start epoch")
@@ -155,12 +158,17 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
         metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
         metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
         metric_logger.meters["img/s"].update(batch_size / (time.time() - start_time))
+        if torch.distributed.get_rank() == 0 and args.log_freq != 0 and i % args.log_freq:
+            wandb.log({'train/accuracy': acc1.item(),
+                       'train/loss': loss.item()})
 
-def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix=""):
+def evaluate(model, criterion, data_loader, device, print_freq=100, log_freq=0, log_suffix=""):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = f"Test: {log_suffix}"
-
+    targets = []
+    outputs = []
+    total_loss = 0
     num_processed_samples = 0
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
@@ -168,7 +176,9 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
             target = target.to(device, non_blocking=True)
             output = model(image)
             loss = criterion(output, target)
-
+            total_loss += loss.item()
+            targets.append(target)
+            outputs.append(output)
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
             # FIXME need to take into account that the datasets
             # could have been padded in distributed setup
@@ -177,6 +187,15 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
             metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
             metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
             num_processed_samples += batch_size
+    
+    targets = torch.cat(targets)
+    outputs = torch.cat(outputs)
+
+    total_acc1, total_acc5 = utils.accuracy(outputs, targets, topk=(1, 5))
+    if torch.distributed.get_rank() == 0 and log_freq != 0:
+            wandb.log({'test/accuracy': total_acc1.item(),
+                       'test/avg_loss': total_loss / len(data_loader)})
+
     # gather the stats from all processes
 
     num_processed_samples = utils.reduce_across_processes(num_processed_samples)
@@ -204,6 +223,8 @@ def main(args):
 
     utils.init_distributed_mode(args)
     print(args)
+    if torch.distributed.get_rank() == 0 and args.log_freq != 0:
+        wandb.init(project='sparse-tokens', config=args)
 
     device = torch.device(args.device)
 
@@ -333,9 +354,9 @@ def main(args):
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         if model_ema:
-            evaluate(model_ema, criterion, test_dataloader, device=device, log_suffix="EMA")
+            evaluate(model_ema, criterion, test_dataloader, device=device, log_freq=args.log_freq, log_suffix="EMA")
         else:
-            evaluate(model, criterion, test_dataloader, device=device)
+            evaluate(model, criterion, test_dataloader, device=device, log_freq=args.log_freq)
         return
 
     print("Start training")
@@ -343,9 +364,9 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         train_one_epoch(model, criterion, optimizer, train_dataloader, device, epoch, args, model_ema, scaler)
         lr_scheduler.step()
-        evaluate(model, criterion, test_dataloader, device=device)
+        evaluate(model, criterion, test_dataloader, device=device, log_freq=args.log_freq)
         if model_ema:
-            evaluate(model_ema, criterion, test_dataloader, device=device, log_suffix="EMA")
+            evaluate(model_ema, criterion, test_dataloader, device=device, log_freq=args.log_freq, log_suffix="EMA")
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
@@ -364,6 +385,7 @@ def main(args):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print(f"Training time {total_time_str}")
+    wandb.finish()
 
 if __name__ == "__main__":
     main(parser.parse_args())
