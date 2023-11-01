@@ -115,9 +115,9 @@ def fit_SSPOR(X_train, n_basis_modes: int, n_sensors: int):
     print(f'{len(model.get_selected_sensors())} sensors selected out of {height * width}')
     return model
 
-def show_basis(model: SSPOC | SSPOR, height: int, width: int, n: int = 100):
+def show_basis(model: SSPOC | SSPOR, height: int, width: int, n_modes: int = 100):
     modes = model.basis.matrix_representation().shape[1]
-    ts.show(np.reshape(model.basis.matrix_representation().T, (modes, height, width))[:n], mode='grayscale')
+    ts.show(np.reshape(model.basis.matrix_representation().T, (modes, height, width))[:n_modes], mode='grayscale')
 
 def show_sensors(model: SSPOC | SSPOR, height: int, width: int):
     sensors = np.zeros(height * width)
@@ -169,18 +169,31 @@ def show_tokens(patched_sensors: np.ndarray, token_mask: np.ndarray, patch: int,
 
     ts.show(tokens, mode='grayscale')
 
-def save_output(args, model : SSPOC | SSPOR, height: int, width: int, token_mask: np.ndarray):
-    n = 100
-    filename = f'n_{args.num}_t_{args.type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
+def save_output(args, model : SSPOC | SSPOR, n: int, height: int, width: int, patch: int, patched_sensors, token_mask: np.ndarray):
+    n_modes = 100
+    filename = f'n_{n}_t_{args.type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
     if not os.path.exists(f'token_masks'):
             os.makedirs(f'token_masks')
     
     modes = model.basis.matrix_representation().shape[1]
-    ts.save(np.reshape(model.basis.matrix_representation().T, (modes, height, width))[:n], f'token_masks/{filename}/modes_{filename}.jpg', mode='grayscale')
+    ts.save(np.reshape(model.basis.matrix_representation().T, (modes, height, width))[:n_modes], f'token_masks/{filename}/modes_{filename}.jpg', mode='grayscale')
 
     sensors = np.zeros(height * width)
     np.put(sensors, model.get_selected_sensors(), 1)
     ts.save(np.reshape(sensors, (height, width)), f'token_masks/{filename}/sensors_{filename}.jpg', mode='grayscale')
+
+    patch_shape = (patch, patch)
+
+    tokens = np.zeros_like(patched_sensors)
+    
+    token_indices = np.argwhere(token_mask)
+
+    for index in token_indices:
+        tokens[index[0]][index[1]] = np.ones(patch_shape)
+
+    tokens = unpatchify(tokens, (height, width))
+
+    ts.save(tokens, f'token_masks/{filename}/tokens_{filename}.jpg', mode='grayscale')
 
     torch.save(torch.from_numpy(token_mask), f'token_masks/{filename}/token_mask_{filename}.pt')
 
@@ -203,7 +216,7 @@ def main(args):
 
     if args.show_tokens: show_tokens(patched_sensors, token_mask, args.patch, height, width)
     
-    if args.output: save_output(args, model, height, width, token_mask)
+    if args.output: save_output(args, model, n, height, width, args.patch, patched_sensors, token_mask)
 
 if __name__ == "__main__":
     main(parser.parse_args())
