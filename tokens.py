@@ -41,12 +41,20 @@ parser.add_argument(
     help="Determines whether pysensors uses SSPOR or SSPOC."
 )
 parser.add_argument(
+    "--basis", "-b",
+    choices=["SVD", "RandomProjection", "Identity"],
+    default="SVD",
+    help="Determines the basis to use."
+)
+parser.add_argument(
     "--modes", "-m",
+    default=1,
     type=int,
     help="Number of modes to select when preparing the basis."
 )
 parser.add_argument(
     "--sensors", "-s",
+    default=1,
     type=int,
     help="Number of sensors to select from the original features."
 )
@@ -93,10 +101,17 @@ parser.add_argument(
     help="Saves outputs to file."
 )
 
-def fit_SSPOC(X_train, y_train, n_basis_modes: int, n_sensors: int, l1_penalty: float):
-    n, height, width = X_train.shape
+def get_basis(basis: str, n_basis_modes: int):
+    if basis == 'SVD':
+        return ps.basis.SVD(n_basis_modes=n_basis_modes)
+    elif basis == 'RandomProjection':
+        return ps.basis.RandomProjection(n_basis_modes=n_basis_modes)
+    elif basis == 'Identity':
+        return ps.basis.Identity(n_basis_modes=n_basis_modes)
+    else: return None
 
-    basis = ps.basis.SVD(n_basis_modes=n_basis_modes)
+def fit_SSPOC(X_train, y_train, basis, n_sensors: int, l1_penalty: float):
+    n, height, width = X_train.shape
 
     model = SSPOC(basis=basis, n_sensors=n_sensors, l1_penalty=l1_penalty)
     model.fit(np.reshape(X_train, (n, height * width)), y_train, quiet=True)
@@ -104,10 +119,8 @@ def fit_SSPOC(X_train, y_train, n_basis_modes: int, n_sensors: int, l1_penalty: 
     print(f'{len(model.get_selected_sensors())} sensors selected out of {height * width}')
     return model
 
-def fit_SSPOR(X_train, n_basis_modes: int, n_sensors: int):
+def fit_SSPOR(X_train, basis, n_sensors: int):
     n, height, width = X_train.shape
-
-    basis = ps.basis.SVD(n_basis_modes=n_basis_modes)
 
     model = SSPOR(basis=basis, n_sensors=n_sensors)
     model.fit(np.reshape(X_train, (n, height * width)), quiet=True)
@@ -202,8 +215,10 @@ def main(args):
 
     n, height, width = X_train.shape
 
-    if args.type == 'r': model = fit_SSPOR(X_train, args.modes, args.sensors)
-    elif args.type == 'c': model = fit_SSPOC(X_train, y_train, args.modes, args.sensors, 0.0000005)
+    basis = get_basis(args.basis, args.modes)
+
+    if args.type == 'r': model = fit_SSPOR(X_train, basis, args.sensors)
+    elif args.type == 'c': model = fit_SSPOC(X_train, y_train, basis, args.sensors, 0.0000005)
 
     if args.show_basis: show_basis(model, height, width)
     if args.show_sensors: show_sensors(model, height, width)
