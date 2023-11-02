@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#SBATCH --job-name=CIFAR10
+#SBATCH --partition=veryshort
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --output=out/%j.out
+#SBATCH --time=6:00:00
+
+source /sw/languages/anaconda/anaconda.3.9.13-2022-torch-cuda-11.7.0/etc/profile.d/conda.sh
+conda activate sparse-tokens
+
+# 50% tokens 50% sensors
+python tokens.py -t c -m 100 -s 1024 -p 16 -k 32 -o
+
+# 50% tokens 25% sensors
+python tokens.py -t c -m 100 -s 512 -p 16 -k 32 -o
+
+# 50% tokens 12.5% sensors
+python tokens.py -t c -m 100 -s 256 -p 16 -k 32 -o
+
+# 50% tokens 6.25% sensors
+python tokens.py -t c -m 100 -s 128 -p 16 -k 32 -o
+
+# 25% tokens 50% sensors
+python tokens.py -t c -m 100 -s 1024 -p 16 -k 16 -o
+
+# 25% tokens 25% sensors
+python tokens.py -t c -m 100 -s 512 -p 16 -k 16 -o
+
+# 25% tokens 12.5% sensors
+python tokens.py -t c -m 100 -s 256 -p 16 -k 16 -o
+
+# 25% tokens 6.25% sensors
+python tokens.py -t c -m 100 -s 128 -p 16 -k 16 -o
+
+# 12.5% tokens 50% sensors
+python tokens.py -t c -m 100 -s 1024 -p 16 -k 8 -o
+
+# 12.5% tokens 25% sensors
+python tokens.py -t c -m 100 -s 512 -p 16 -k 8 -o
+
+# 12.5% tokens 12.5% sensors
+python tokens.py -t c -m 100 -s 256 -p 16 -k 8 -o
+
+# 12.5% tokens 6.25% sensors
+python tokens.py -t c -m 100 -s 128 -p 16 -k 8 -o
