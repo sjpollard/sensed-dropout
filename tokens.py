@@ -182,9 +182,8 @@ def show_tokens(patched_sensors: np.ndarray, token_mask: np.ndarray, patch: int,
 
     ts.show(tokens, mode='grayscale')
 
-def save_output(args, model : SSPOC | SSPOR, n: int, height: int, width: int, patch: int, patched_sensors, token_mask: np.ndarray):
+def save_output(filename, model : SSPOC | SSPOR, height: int, width: int, patch: int, patched_sensors, token_mask: np.ndarray):
     n_modes = 100
-    filename = f'n_{n}_t_{args.type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
     if not os.path.exists(f'token_masks'):
             os.makedirs(f'token_masks')
     
@@ -231,7 +230,9 @@ def main(args):
 
     if args.show_tokens: show_tokens(patched_sensors, token_mask, args.patch, height, width)
     
-    if args.output: save_output(args, model, n, height, width, args.patch, patched_sensors, token_mask)
+    if args.output:
+        filename = f'n_{n}_t_{args.type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
+        save_output(filename, model, n, height, width, args.patch, patched_sensors, token_mask)
 
 if __name__ == "__main__":
     main(parser.parse_args())
