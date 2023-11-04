@@ -168,6 +168,11 @@ def patches_to_tokens(patched_sensors: np.ndarray, k: int):
     print(f'{int(np.sum(token_mask))} tokens chosen out of {patched_sensors.shape[0] * patched_sensors.shape[1]}')
     return token_mask
 
+def random_mask(height: int, width: int, k: int):
+    n = height * width
+    token_mask = torch.reshape(torch.repeat_interleave(torch.tensor([False, True]), torch.tensor([n-k, k]))[torch.randperm(n)], (height, width))
+    return token_mask
+
 def show_tokens(patched_sensors: np.ndarray, token_mask: np.ndarray, patch: int, height: int, width: int):
     patch_shape = (patch, patch)
 
