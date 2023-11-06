@@ -8,7 +8,7 @@ import torch.utils.data
 import torchvision
 import torchvision.transforms
 import utils
-from torch import nn
+from torch import dropout, nn
 
 import wandb
 
@@ -34,6 +34,8 @@ parser.add_argument(
 )
 parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
 parser.add_argument("--lr", default=0.1, type=float, help="initial learning rate")
+parser.add_argument("--dropout", default=0.0, type=float, help="Dropout value for fully connected layers")
+parser.add_argument("--attention-dropout", default=0.0, type=float, help="Dropout value for attention")
 parser.add_argument("--momentum", default=0.9, type=float, metavar="M", help="momentum")
 parser.add_argument(
     "--wd",
@@ -117,7 +119,7 @@ parser.add_argument(
 parser.add_argument("--clip-grad-norm", default=None, type=float, help="the maximum gradient norm (default None)")
 parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
 
-def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None):
+def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None, logging=False):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
@@ -158,11 +160,11 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
         metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
         metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
         metric_logger.meters["img/s"].update(batch_size / (time.time() - start_time))
-        if torch.distributed.get_rank() == 0 and args.log_freq != 0 and i % args.log_freq:
+        if logging and i % args.log_freq:
             wandb.log({'train/accuracy': acc1.item(),
                        'train/loss': loss.item()})
 
-def evaluate(model, criterion, data_loader, device, print_freq=100, log_freq=0, log_suffix=""):
+def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="", logging=False):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = f"Test: {log_suffix}"
@@ -192,7 +194,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_freq=0, 
     outputs = torch.cat(outputs)
 
     total_acc1, total_acc5 = utils.accuracy(outputs, targets, topk=(1, 5))
-    if torch.distributed.get_rank() == 0 and log_freq != 0 and log_suffix == '':
+    if logging and log_suffix == '':
             wandb.log({'test/accuracy': total_acc1.item(),
                        'test/avg_loss': total_loss / len(data_loader)})
 
@@ -222,8 +224,11 @@ def main(args):
         utils.mkdir(args.output_dir)
 
     utils.init_distributed_mode(args)
-    print(args)
-    if torch.distributed.get_rank() == 0 and args.log_freq != 0:
+    logging = False
+    if args.distributed:
+        logging = torch.distributed.get_rank() == 0 and args.log_freq != 0
+    else: logging = args.log_freq != 0
+    if logging:
         wandb.init(project='sparse-tokens', config=args)
 
     device = torch.device(args.device)
@@ -241,10 +246,10 @@ def main(args):
 
     print("Creating model")
     if args.model != 'sparse_token_vit_b_16':
-        model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes)
+        model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes, dropout=args.dropout, attention_dropout=args.attention_dropout)
     else:
         token_mask = torch.load(f'token_masks/{args.token_mask}/token_mask_{args.token_mask}.pt')
-        model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes)
+        model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes, dropout=args.dropout, attention_dropout=args.attention_dropout)
     model.to(device)
 
     if args.distributed and args.sync_bn:
@@ -356,15 +361,15 @@ def main(args):
         if model_ema:
             evaluate(model_ema, criterion, test_dataloader, device=device, log_freq=args.log_freq, log_suffix="EMA")
         else:
-            evaluate(model, criterion, test_dataloader, device=device, log_freq=args.log_freq)
+            evaluate(model, criterion, test_dataloader, device=device, log_freq=args.log_freq, logging=logging)
         return
 
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
-        train_one_epoch(model, criterion, optimizer, train_dataloader, device, epoch, args, model_ema, scaler)
+        train_one_epoch(model, criterion, optimizer, train_dataloader, device, epoch, args, model_ema, scaler, logging)
         lr_scheduler.step()
-        evaluate(model, criterion, test_dataloader, device=device, log_freq=args.log_freq)
+        evaluate(model, criterion, test_dataloader, device=device, logging=logging)
         if model_ema:
             evaluate(model_ema, criterion, test_dataloader, device=device, log_freq=args.log_freq, log_suffix="EMA")
         if args.output_dir:
@@ -385,7 +390,7 @@ def main(args):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print(f"Training time {total_time_str}")
-    wandb.finish()
+    if logging: wandb.finish()
 
 if __name__ == "__main__":
     main(parser.parse_args())
