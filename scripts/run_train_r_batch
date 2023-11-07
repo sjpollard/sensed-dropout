@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#SBATCH --job-name=CIFAR10
+#SBATCH --partition=gpu_veryshort
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=2
+#SBATCH --output=out/%j.out
+#SBATCH --time=1:00:00
+
+source /sw/languages/anaconda/anaconda.3.9.13-2022-torch-cuda-11.7.0/etc/profile.d/conda.sh
+conda activate sparse-tokens
+
+# batch_t_r_m_128_s_1024_p_16_k_8
+torchrun --nproc_per_node=2 train.py\
+    --model sparse_token_batch_vit_b_16 --fit-type 'r' --modes 128 --sensors 1024 --tokens 8\
+    --epochs 1 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3 --lr-scheduler cosineannealinglr\
+    --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp --label-smoothing 0.11\
+    --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''

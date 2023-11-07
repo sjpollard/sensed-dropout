@@ -1,8 +1,11 @@
 import os
+import argparse
 
 import torch
 import torchvision.datasets
 import torchshow as ts
+
+from typing import Optional
 
 import numpy as np
 
@@ -13,8 +16,6 @@ from pysensors.classification import SSPOC
 from pysensors.reconstruction import SSPOR
 
 from patchify import patchify, unpatchify
-
-import argparse
 
 import data
 
@@ -213,6 +214,12 @@ def save_output(filename, model : SSPOC | SSPOR, height: int, width: int, patch:
     ts.save(tokens, f'token_masks/{filename}/tokens_{filename}.jpg', mode='grayscale')
 
     torch.save(torch.from_numpy(token_mask), f'token_masks/{filename}/token_mask_{filename}.pt')
+
+def get_model(fit_type: str, basis: str, modes: int, sensors: int):
+    basis = get_basis(basis, modes)
+    if fit_type == 'c': model = SSPOC(basis=basis, n_sensors=sensors, l1_penalty=0.0000005)
+    elif fit_type == 'r': model = SSPOR(basis=basis, n_sensors=sensors)
+    return model
 
 def main(args):
     X_train, y_train = data.get_dataset_as_numpy(torchvision.datasets.CIFAR10, args.num, download=args.download, greyscale=True)
