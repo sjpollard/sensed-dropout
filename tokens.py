@@ -36,7 +36,7 @@ parser.add_argument(
     help="Downloads the dataset from torchvision."
 )
 parser.add_argument(
-    "--type", "-t",
+    "--fit-type", "-t",
     choices=["r", "c"],
     default="r",
     help="Determines whether pysensors uses SSPOR or SSPOC."
@@ -165,8 +165,6 @@ def patches_to_tokens(patched_sensors: np.ndarray, k: int):
     token_mask = np.zeros((patch_sums.shape[0] * patch_sums.shape[1]), dtype=bool)
     token_mask[np.argsort(patch_sums.ravel())[:-k-1:-1]] = True
     token_mask = token_mask.reshape((patch_sums.shape))
-
-    print(f'{int(np.sum(token_mask))} tokens chosen out of {patched_sensors.shape[0] * patched_sensors.shape[1]}')
     return token_mask
 
 def random_mask(height: int, width: int, k: int):
@@ -228,13 +226,13 @@ def main(args):
 
     basis = get_basis(args.basis, args.modes)
 
-    if args.type == 'r': model = fit_SSPOR(X_train, basis, args.sensors)
-    elif args.type == 'c': model = fit_SSPOC(X_train, y_train, basis, args.sensors, 0.0000005)
+    if args.fit_type == 'r': model = fit_SSPOR(X_train, basis, args.sensors)
+    elif args.fit_type == 'c': model = fit_SSPOC(X_train, y_train, basis, args.sensors, 0.0000005)
 
     if args.show_basis: show_basis(model, height, width)
     if args.show_sensors: show_sensors(model, height, width)
 
-    if args.type == 'c' and args.print_accuracy:
+    if args.fit_type == 'c' and args.print_accuracy:
         print_accuracies(model, X_train, y_train, n, height, width)
 
     if args.patch != 0: patched_sensors = sensors_to_patches(model, args.patch, height, width)
@@ -243,7 +241,7 @@ def main(args):
     if args.show_tokens: show_tokens(patched_sensors, token_mask, args.patch, height, width)
     
     if args.output:
-        filename = f'n_{n}_t_{args.type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
+        filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
         save_output(filename, model, n, height, width, args.patch, patched_sensors, token_mask)
 
 if __name__ == "__main__":
