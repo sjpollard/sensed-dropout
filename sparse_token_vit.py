@@ -16,9 +16,7 @@ class SparseTokenVisionTransformer(VisionTransformer):
         num_heads: int,
         hidden_dim: int,
         mlp_dim: int,
-        token_mask: torch.Tensor = None,
-        tokens: int = None,
-        random_tokens: int = None,
+        token_mask: torch.Tensor,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
         num_classes: int = 1000,
@@ -41,13 +39,7 @@ class SparseTokenVisionTransformer(VisionTransformer):
         )
         
         self.token_mask = token_mask
-        self.tokens = tokens
-        self.random_tokens = random_tokens
-
-        if token_mask != None:
-            self.seq_length = torch.sum(token_mask, dtype=int).item() + 1
-        elif token_mask == None:
-            self.seq_length = self.tokens + self.random_tokens + 1
+        self.seq_length = torch.sum(token_mask, dtype=int).item() + 1
 
         self.encoder = torchvision.models.vision_transformer.Encoder(
             self.seq_length,
@@ -90,8 +82,6 @@ def _sparse_token_vision_transformer(
     hidden_dim: int,
     mlp_dim: int,
     token_mask: torch.Tensor,
-    tokens: int,
-    random_tokens: int,
     weights,
     progress: bool,
     **kwargs: Any,
@@ -106,15 +96,12 @@ def _sparse_token_vision_transformer(
         hidden_dim=hidden_dim,
         mlp_dim=mlp_dim,
         token_mask=token_mask,
-        tokens=tokens,
-        random_tokens=random_tokens,
         **kwargs,
     )
 
     return model
 
-def sparse_token_vit_b_16(*, token_mask: torch.Tensor, tokens: int, random_tokens: int, 
-    weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenVisionTransformer:
+def sparse_token_vit_b_16(*, token_mask: torch.Tensor, weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenVisionTransformer:
     return _sparse_token_vision_transformer(
         patch_size=16,
         num_layers=12,
@@ -122,8 +109,6 @@ def sparse_token_vit_b_16(*, token_mask: torch.Tensor, tokens: int, random_token
         hidden_dim=768,
         mlp_dim=3072,
         token_mask=token_mask,
-        tokens=tokens,
-        random_tokens=random_tokens,
         weights=weights,
         progress=progress,
         **kwargs,

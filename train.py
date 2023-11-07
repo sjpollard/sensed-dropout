@@ -2,22 +2,20 @@ import datetime
 import os
 import time
 import warnings
-import argparse
 
 import torch
 import torch.utils.data
 import torchvision
 import torchvision.transforms
 import utils
-from torch import nn
+from torch import dropout, nn
 
 import wandb
 
-import pysensors as ps
-from pysensors import SSPOC, SSPOR
+import argparse
 
 import data
-import tokens
+
 from sparse_token_vit import sparse_token_vit_b_16
 
 parser = argparse.ArgumentParser(
@@ -25,12 +23,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--model", default="resnet18", type=str, help="model name")
-parser.add_argument("--token-mask", default=None, type=str, help="Name of the saved token mask to train with.")
-parser.add_argument("--fit-type", default="r", type=str, help="Determines whether pysensors uses SSPOR or SSPOC.")
-parser.add_argument("--modes", default=1, type=int, help="Number of modes to select when preparing the basis.")
-parser.add_argument("--sensors", "-s", default=1, type=int, help="Number of sensors to select from the original features.")
-parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
-parser.add_argument("--random-tokens", default=0, type=int, help="Number of random tokens to be selected.")
+parser.add_argument("--token-mask", default='', type=str, help="Name of the saved token mask to train with.")
 parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
 parser.add_argument(
     "-b", "--batch-size", default=32, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -126,7 +119,7 @@ parser.add_argument(
 parser.add_argument("--clip-grad-norm", default=None, type=float, help="the maximum gradient norm (default None)")
 parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
 
-def train_one_epoch(model, ps_model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None, logging=False):
+def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None, logging=False):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
@@ -246,32 +239,17 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    ps_model = None
-    if args.model == 'sparse_token_vit_b_16' and args.token_mask == None:
-        if args.fit_type == 'r':
-            ps_model = SSPOR(basis=ps.basis.SVD(args.modes), n_sensors=args.sensors)
-        elif args.fit_type == 'c':
-            ps_model = SSPOC(basis=ps.basis.SVD(args.modes), n_sensors=args.sensors, l1_penalty=0.0000005)
-        
     train_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, num_workers=args.workers, distributed=args.distributed)
     test_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, num_workers=args.workers, distributed=args.distributed)
 
     num_classes = len(train_dataloader.dataset.classes)
 
     print("Creating model")
-    if args.model == 'sparse_token_vit_b_16':
-        if args.token_mask != None:
-            token_mask = torch.load(f'token_masks/{args.token_mask}/token_mask_{args.token_mask}.pt')
-            model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes, 
-                                          dropout=args.dropout, attention_dropout=args.attention_dropout)
-        else:
-            model = sparse_token_vit_b_16(image_size=128, tokens=args.tokens, random_tokens=args.random_tokens, 
-                                          weights=args.weights, num_classes=num_classes, 
-                                          dropout=args.dropout, attention_dropout=args.attention_dropout)
+    if args.model != 'sparse_token_vit_b_16':
+        model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes, dropout=args.dropout, attention_dropout=args.attention_dropout)
     else:
-        model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes, 
-                                             dropout=args.dropout, attention_dropout=args.attention_dropout)
-        
+        token_mask = torch.load(f'token_masks/{args.token_mask}/token_mask_{args.token_mask}.pt')
+        model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes, dropout=args.dropout, attention_dropout=args.attention_dropout)
     model.to(device)
 
     if args.distributed and args.sync_bn:
@@ -389,7 +367,7 @@ def main(args):
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
-        train_one_epoch(model, ps_model, criterion, optimizer, train_dataloader, device, epoch, args, model_ema, scaler, logging)
+        train_one_epoch(model, criterion, optimizer, train_dataloader, device, epoch, args, model_ema, scaler, logging)
         lr_scheduler.step()
         evaluate(model, criterion, test_dataloader, device=device, logging=logging)
         if model_ema:
