@@ -5,13 +5,11 @@ from torchvision import transforms
 from torchvision.datasets import VisionDataset
 
 def get_dataset_as_numpy(vision_dataset: VisionDataset, batch_size: int=-1, train: bool=True, download: bool=False, greyscale: bool=False, num_workers: int=1):
-    if greyscale:
-        transform = transforms.Compose([transforms.Grayscale(),
-                                        transforms.ToTensor(),
-                                        transforms.Resize((128, 128), antialias=False)])
-    else:
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Resize((128, 128), antialias=False)])
+    transform_list = []
+    if greyscale: transform_list.append(transforms.Grayscale())
+    transform_list.extend([transforms.ToTensor(),
+                          transforms.Resize((128, 128), antialias=False)])
+    transform = transforms.Compose(transform_list)
     if not os.path.exists(f'datasets'):
             os.makedirs(f'datasets')    
     dataset = vision_dataset(f'datasets/{vision_dataset.__name__}', transform=transform, train=train, download=download)
@@ -22,13 +20,11 @@ def get_dataset_as_numpy(vision_dataset: VisionDataset, batch_size: int=-1, trai
     return X.numpy().squeeze(), y.numpy()
 
 def get_dataloader(vision_dataset: VisionDataset, batch_size: int=-1, train: bool=True, download: bool=False, greyscale: bool=False, num_workers: int=1, distributed: bool=False):
-    if greyscale:
-        transform = transforms.Compose([transforms.Grayscale(),
-                                        transforms.ToTensor(),
-                                        transforms.Resize((128, 128), antialias=False)])
-    else:
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Resize((128, 128), antialias=False)])
+    transform_list = []
+    if greyscale: transform_list.append(transforms.Grayscale())
+    transform_list.extend([transforms.ToTensor(),
+                          transforms.Resize((128, 128), antialias=False)])
+    transform = transforms.Compose(transform_list)
     if not os.path.exists(f'datasets'):
             os.makedirs(f'datasets')
     dataset = vision_dataset(f'datasets/{vision_dataset.__name__}', transform=transform, train=train, download=download)
