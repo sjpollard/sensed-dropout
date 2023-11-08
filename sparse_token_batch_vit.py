@@ -1,4 +1,5 @@
-from pysensors import SSPOC, SSPOR
+import time
+
 import torch
 import torchvision
 from torchvision.models.vision_transformer import VisionTransformer
@@ -6,6 +7,8 @@ import torch.nn as nn
 
 from functools import partial
 from typing import Any, Optional, List, Callable
+
+from pysensors import SSPOC, SSPOR
 
 import tokens
 
@@ -62,6 +65,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         )
     
     def update_mask(self, x: torch.Tensor, y: Optional[torch.Tensor]):
+        start_time = time.time()
         n, height, width = x.size(0), x.size(2), x.size(3)
         processed = (x.sum(dim=1) / 3).reshape((n, -1)).numpy()
         if self.fit_type == 'c':
@@ -69,6 +73,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         else: self.ps_model.fit(processed)
         patched_sensors = tokens.sensors_to_patches(self.ps_model, self.patch_size, height, width)
         self.token_mask = tokens.patches_to_tokens(patched_sensors, self.tokens)
+        print(time.time() - start_time)
 
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
         n, c, h, w = x.shape
