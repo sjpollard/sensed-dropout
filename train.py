@@ -25,7 +25,8 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("--model", default="resnet18", type=str, help="model name")
 parser.add_argument("--token-mask", default='', type=str, help="Name of the saved token mask to train with.")
-parser.add_argument("--fit-type", default="r", type=str, help="Determines whether pysensors uses SSPOR or SSPOC.")
+parser.add_argument("--fit-type", default="r", choices=["r", "c"], help="Determines whether pysensors uses SSPOR or SSPOC.")
+parser.add_argument("--basis", default="Identity", choices=["Identity", "SVD", "RandomProjection"], help="Determines the basis represent images in.")
 parser.add_argument("--modes", default=1, type=int, help="Number of modes to select when preparing the basis.")
 parser.add_argument("--sensors", "-s", default=1, type=int, help="Number of sensors to select from the original features.")
 parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
@@ -171,7 +172,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
             wandb.log({'train/accuracy': acc1.item(),
                        'train/loss': loss.item()})
 
-def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="", logging=False):
+def evaluate(model, criterion, data_loader, device, args, print_freq=100, log_suffix="", logging=False):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = f"Test: {log_suffix}"
@@ -181,6 +182,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     num_processed_samples = 0
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
+            if args.model == 'sparse_token_batch_vit_b_16': model.module.update_mask(image, target)
             image = image.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
             output = model(image)
@@ -260,7 +262,7 @@ def main(args):
         model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes,
                                       dropout=args.dropout, attention_dropout=args.attention_dropout)
     elif args.model == 'sparse_token_batch_vit_b_16':
-        ps_model = tokens.get_model(args.fit_type, 'SVD', args.modes, args.sensors)
+        ps_model = tokens.get_model(args.fit_type, args.basis, args.modes, args.sensors)
         model = sparse_token_batch_vit_b_16(image_size=128, ps_model=ps_model, fit_type=args.fit_type, tokens=args.tokens, 
                                             random_tokens=args.random_tokens, weights=args.weights, num_classes=num_classes,
                                             dropout=args.dropout, attention_dropout=args.attention_dropout)

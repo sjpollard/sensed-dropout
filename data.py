@@ -42,7 +42,8 @@ def get_dataloader(vision_dataset: VisionDataset, batch_size: int=-1, train: boo
         batch_size=batch_size,
         sampler=sampler,
         num_workers=num_workers,
-        pin_memory=True
+        pin_memory=True,
+        drop_last=True
     )
 
     return dataloader
