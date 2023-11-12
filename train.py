@@ -375,9 +375,9 @@ def main(args):
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         if model_ema:
-            evaluate(model_ema, criterion, test_dataloader, device=device, log_freq=args.log_freq, log_suffix="EMA")
+            evaluate(model_ema, criterion, test_dataloader, device=device, args=args, log_freq=args.log_freq, log_suffix="EMA")
         else:
-            evaluate(model, criterion, test_dataloader, device=device, log_freq=args.log_freq, logging=logging)
+            evaluate(model, criterion, test_dataloader, device=device, args=args, log_freq=args.log_freq, logging=logging)
         return
 
     print("Start training")
@@ -385,9 +385,9 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         train_one_epoch(model, criterion, optimizer, train_dataloader, device, epoch, args, model_ema, scaler, logging)
         lr_scheduler.step()
-        evaluate(model, criterion, test_dataloader, device=device, logging=logging)
+        evaluate(model, criterion, test_dataloader, device=device, args=args, logging=logging)
         if model_ema:
-            evaluate(model_ema, criterion, test_dataloader, device=device, log_freq=args.log_freq, log_suffix="EMA")
+            evaluate(model_ema, criterion, test_dataloader, device=device, args=args, log_freq=args.log_freq, log_suffix="EMA")
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),

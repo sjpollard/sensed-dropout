@@ -1,18 +1,53 @@
 #!/bin/bash
 
 #SBATCH --job-name=CIFAR10
-#SBATCH --partition=gpu_veryshort
+#SBATCH --partition=gpu
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=1
+#SBATCH --gpus-per-node=2
 #SBATCH --output=out/%j.out
-#SBATCH --time=1:00:00
+#SBATCH --time=14:00:00
 
 source /sw/languages/anaconda/anaconda.3.9.13-2022-torch-cuda-11.7.0/etc/profile.d/conda.sh
 conda activate sparse-tokens
 
 # batch_t_r_b_Identity_m_128_s_128_p_16_k_8
-torchrun --nproc_per_node=1 train.py\
-    --model sparse_token_batch_vit_b_16 --fit-type 'r' --basis Identity --modes 128 --sensors 128 --tokens 8\
-    --epochs 1 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3 --lr-scheduler cosineannealinglr\
-    --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp --label-smoothing 0.11\
-    --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+#torchrun --nproc_per_node=2 train.py\
+#    --model sparse_token_batch_vit_b_16 --fit-type 'r' --basis Identity --modes 128 --sensors 128 --tokens 8\
+#    --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --dropout 0.1 --attention-dropout 0.1 --wd 0.3\
+#    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+#    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+# batch_t_r_b_Identity_m_128_s_128_p_16_k_16
+#torchrun --nproc_per_node=2 train.py\
+#    --model sparse_token_batch_vit_b_16 --fit-type 'r' --basis Identity --modes 128 --sensors 128 --tokens 16\
+#    --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --dropout 0.1 --attention-dropout 0.1 --wd 0.3\
+#    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+#    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+# batch_t_r_b_Identity_m_128_s_128_p_16_k_32
+#torchrun --nproc_per_node=2 train.py\
+#    --model sparse_token_batch_vit_b_16 --fit-type 'r' --basis Identity --modes 128 --sensors 128 --tokens 32\
+#    --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --dropout 0.1 --attention-dropout 0.1 --wd 0.3\
+#    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+#    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+# batch_t_r_b_SVD_m_128_s_128_p_16_k_8
+#torchrun --nproc_per_node=2 train.py\
+#    --model sparse_token_batch_vit_b_16 --fit-type 'r' --basis SVD --modes 128 --sensors 128 --tokens 8\
+#    --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --dropout 0.1 --attention-dropout 0.1 --wd 0.3\
+#    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+#    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+# batch_t_r_b_SVD_m_128_s_128_p_16_k_16
+#torchrun --nproc_per_node=2 train.py\
+#    --model sparse_token_batch_vit_b_16 --fit-type 'r' --basis SVD --modes 128 --sensors 128 --tokens 16\
+#    --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --dropout 0.1 --attention-dropout 0.1 --wd 0.3\
+#    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+#    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+# batch_t_r_b_SVD_m_128_s_128_p_16_k_32
+torchrun --nproc_per_node=2 train.py\
+    --model sparse_token_batch_vit_b_16 --fit-type 'r' --basis Identity --modes 128 --sensors 128 --tokens 32\
+    --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --dropout 0.1 --attention-dropout 0.1 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
