@@ -19,16 +19,15 @@ def get_dataset_as_numpy(vision_dataset: VisionDataset, batch_size: int=-1, trai
     X, y = next(iter(dataloader))
     return X.numpy().squeeze(), y.numpy()
 
-def get_dataloader(vision_dataset: VisionDataset, batch_size: int=-1, train: bool=True, download: bool=False, greyscale: bool=False, num_workers: int=1, distributed: bool=False):
-    transform_list = []
+def get_dataloader(vision_dataset: VisionDataset, batch_size: int=None, image_size: int=None, train: bool=True, download: bool=False, greyscale: bool=False, num_workers: int=1, distributed: bool=False):
+    transform_list = [transforms.ToTensor()]
     if greyscale: transform_list.append(transforms.Grayscale())
-    transform_list.extend([transforms.ToTensor(),
-                          transforms.Resize((128, 128), antialias=False)])
+    if image_size: transform_list.append(transforms.Resize((image_size, image_size), antialias=False))
     transform = transforms.Compose(transform_list)
     if not os.path.exists(f'datasets'):
             os.makedirs(f'datasets')
     dataset = vision_dataset(f'datasets/{vision_dataset.__name__}', transform=transform, train=train, download=download)
-    if batch_size == -1:
+    if batch_size == None:
         batch_size = len(dataset)
 
     if distributed:
