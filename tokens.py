@@ -95,6 +95,12 @@ parser.add_argument(
     help="If using SSPOC for classification, checks accuracy against train and test."
 )
 parser.add_argument(
+    "--print-error",
+    default=False,
+    action='store_true',
+    help="If using SSPOR for reconstruction, checks error against train and test."
+)
+parser.add_argument(
     "--show-tokens",
     default=False,
     action='store_true',
@@ -125,7 +131,7 @@ def show_sensors(model: SSPOC | SSPOR, h: int, w: int):
     np.put(sensors, model.get_selected_sensors(), 1)
     ts.show(np.reshape(sensors, (h, w)), mode='grayscale')
 
-def print_accuracies(model: SSPOC | SSPOR, X_train, y_train, batch_size: int):
+def print_classification_accuracy(model: SSPOC, X_train, y_train, batch_size: int):
     n, h, w = X_train.shape
     dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=batch_size, train=False, greyscale=True)
     batch = next(iter(dataloader))
@@ -136,6 +142,16 @@ def print_accuracies(model: SSPOC | SSPOR, X_train, y_train, batch_size: int):
 
     y_pred = model.predict(X_test.reshape((batch_size, -1))[:,model.selected_sensors])
     print(f'Test accuracy: {accuracy_score(y_test, y_pred) * 100}%')
+
+def print_reconstruction_error(model: SSPOR, X_train, batch_size: int):
+    n, h, w = X_train.shape
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=batch_size, train=False, greyscale=True)
+    batch = next(iter(dataloader))
+    X_test = batch[0].squeeze().numpy()
+
+    print(f'Train score: {-model.score(X_train.reshape((n, -1)))}')
+
+    print(f'Test score: {-model.score(X_test.reshape((n, -1)))}')
 
 def sensors_to_patches(model: SSPOC | SSPOR, patch: int, h: int, w: int):
     patch_shape = (patch, patch)
@@ -213,8 +229,8 @@ def main(args):
     if args.show_basis: show_basis(model, h)
     if args.show_sensors: show_sensors(model, h, w)
 
-    if args.fit_type == 'c' and args.print_accuracy:
-        print_accuracies(model, X_train, y_train, args.batch_size)
+    if args.print_accuracy: print_classification_accuracy(model, X_train, y_train, args.batch_size)
+    elif args.print_error: print_reconstruction_error(model, X_train, args.batch_size)
 
     if args.patch != 0: patched_sensors = sensors_to_patches(model, args.patch, h, w)
     if args.tokens != 0: token_mask = patches_to_tokens(patched_sensors, args.tokens)
