@@ -40,18 +40,19 @@ python tokens.py ... --show-basis --show-sensors --show-tokens
 
 ### tokens.py
 
-- `--num, -n` (int): Number of values to process from the dataset.
+- `--num, -n` (int): Number of values to process from the dataset for each fit
 - `--download, -d` (on/off): Downloads the dataset from torchvision.
 - `--type, -t` (str): `'r'` or `'c'` depending on whether a SSPOR or SSPOC model should be used
 - `--modes, -m` (int): Number of modes to select when preparing the basis
 - `--sensors, -s` (int): Number of sensors to select from the original features
+- `--l1-penalty, -l` (float): Strength of L1 regularisation
 - `--patch, -p` (int): Size of the token patches to be selected
 - `--tokens, -k` (int): Number of tokens to be selected
 - `--show-basis` (on/off): Reshapes and displays up to 100 modes of the generated basis
 - `--show-sensors` (on/off): Reshapes and displays active sensor locations
 - `--print-accuracy` (on/off): If using SSPOC for classification, checks accuracy against train and test
-- `--show-tokens` (on/off): Reshapes and displays active token locations'
-- `--output, -o` (str): Name of saved output file.
+- `--show-tokens` (on/off): Reshapes and displays active token locations
+- `--output, -o` (str): Name of saved output file
 
 ### train.py
 
