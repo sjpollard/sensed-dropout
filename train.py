@@ -29,6 +29,7 @@ parser.add_argument("--fit-type", default="r", choices=["r", "c"], help="Determi
 parser.add_argument("--basis", default="Identity", choices=["Identity", "SVD", "RandomProjection"], help="Determines the basis represent images in.")
 parser.add_argument("--modes", default=1, type=int, help="Number of modes to select when preparing the basis.")
 parser.add_argument("--sensors", "-s", default=1, type=int, help="Number of sensors to select from the original features.")
+parser.add_argument("--patch", "-p", default=4, type=int, help="Size of the token patches to be selected at native resolution.")
 parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
 parser.add_argument("--random-tokens", default=0, type=int, help="Number of random tokens to be selected.")
 parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
@@ -106,27 +107,12 @@ parser.add_argument("--amp", action="store_true", help="Use torch.cuda.amp for m
 parser.add_argument("--world-size", default=1, type=int, help="number of distributed processes")
 parser.add_argument("--dist-url", default="env://", type=str, help="url used to set up distributed training")
 parser.add_argument(
-    "--model-ema", action="store_true", help="enable tracking Exponential Moving Average of model parameters"
-)
-parser.add_argument(
-    "--model-ema-steps",
-    type=int,
-    default=32,
-    help="the number of iterations that controls how often to update the EMA model (default: 32)",
-)
-parser.add_argument(
-    "--model-ema-decay",
-    type=float,
-    default=0.99998,
-    help="decay factor for Exponential Moving Average of model parameters (default: 0.99998)",
-)
-parser.add_argument(
     "--use-deterministic-algorithms", action="store_true", help="Forces the use of deterministic algorithms only."
 )
 parser.add_argument("--clip-grad-norm", default=None, type=float, help="the maximum gradient norm (default None)")
 parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
 
-def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None, logging=False):
+def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, scaler=None, logging=False):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
@@ -135,7 +121,10 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
     header = f"Epoch: [{epoch}]"
     for i, (image, target) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
-        if args.model == 'sparse_token_batch_vit_b_16': model.module.update_mask(image, target)
+        if args.model == 'sparse_token_batch_vit_b_16': 
+            if args.distributed: model.module.update_mask(image, target)
+            else: model.update_mask(image, target)
+        image = torchvision.transforms.functional.resize(image, size=(128, 128), antialias=False)
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
@@ -155,12 +144,6 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
             if args.clip_grad_norm is not None:
                 nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_norm)
             optimizer.step()
-
-        if model_ema and i % args.model_ema_steps == 0:
-            model_ema.update_parameters(model)
-            if epoch < args.lr_warmup_epochs:
-                # Reset ema buffer to keep copying weights during warmup period
-                model_ema.n_averaged.fill_(0)
 
         acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
         batch_size = image.shape[0]
@@ -182,7 +165,10 @@ def evaluate(model, criterion, data_loader, device, args, print_freq=100, log_su
     num_processed_samples = 0
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
-            if args.model == 'sparse_token_batch_vit_b_16': model.module.update_mask(image, target)
+            if args.model == 'sparse_token_batch_vit_b_16': 
+                if args.distributed: model.module.update_mask(image, target)
+                else: model.update_mask(image, target)
+            image = torchvision.transforms.functional.resize(image, size=(128, 128), antialias=False)
             image = image.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
             output = model(image)
@@ -262,10 +248,10 @@ def main(args):
         model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes,
                                       dropout=args.dropout, attention_dropout=args.attention_dropout)
     elif args.model == 'sparse_token_batch_vit_b_16':
-        ps_model = tokens.get_model(args.fit_type, args.basis, args.modes, args.sensors)
-        model = sparse_token_batch_vit_b_16(image_size=128, ps_model=ps_model, fit_type=args.fit_type, tokens=args.tokens, 
-                                            random_tokens=args.random_tokens, weights=args.weights, num_classes=num_classes,
-                                            dropout=args.dropout, attention_dropout=args.attention_dropout)
+        ps_model = tokens.get_model(args.fit_type, args.basis, args.modes, args.sensors, 0.001)
+        model = sparse_token_batch_vit_b_16(image_size=128, ps_model=ps_model, fit_type=args.fit_type, patch=args.patch,
+                                            tokens=args.tokens, random_tokens=args.random_tokens, weights=args.weights,
+                                            num_classes=num_classes, dropout=args.dropout, attention_dropout=args.attention_dropout)
     model.to(device)
 
     if args.distributed and args.sync_bn:
@@ -345,19 +331,6 @@ def main(args):
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
-    model_ema = None
-    if args.model_ema:
-        # Decay adjustment that aims to keep the decay independent of other hyper-parameters originally proposed at:
-        # https://github.com/facebookresearch/pycls/blob/f8cd9627/pycls/core/net.py#L123
-        #
-        # total_ema_updates = (Dataset_size / n_GPUs) * epochs / (batch_size_per_gpu * EMA_steps)
-        # We consider constant = Dataset_size for a given dataset/setup and omit it. Thus:
-        # adjust = 1 / total_ema_updates ~= n_GPUs * batch_size_per_gpu * EMA_steps / epochs
-        adjust = args.world_size * args.batch_size * args.model_ema_steps / args.epochs
-        alpha = 1.0 - args.model_ema_decay
-        alpha = min(1.0, alpha * adjust)
-        model_ema = utils.ExponentialMovingAverage(model_without_ddp, device=device, decay=1.0 - alpha)
-
     if args.resume:
         checkpoint = torch.load(args.resume, map_location="cpu")
         model_without_ddp.load_state_dict(checkpoint["model"])
@@ -365,8 +338,6 @@ def main(args):
             optimizer.load_state_dict(checkpoint["optimizer"])
             lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
         args.start_epoch = checkpoint["epoch"] + 1
-        if model_ema:
-            model_ema.load_state_dict(checkpoint["model_ema"])
         if scaler:
             scaler.load_state_dict(checkpoint["scaler"])
 
@@ -374,20 +345,15 @@ def main(args):
         # We disable the cudnn benchmarking because it can noticeably affect the accuracy
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
-        if model_ema:
-            evaluate(model_ema, criterion, test_dataloader, device=device, args=args, log_freq=args.log_freq, log_suffix="EMA")
-        else:
-            evaluate(model, criterion, test_dataloader, device=device, args=args, log_freq=args.log_freq, logging=logging)
+        evaluate(model, criterion, test_dataloader, device=device, args=args, log_freq=args.log_freq, logging=logging)
         return
 
     print("Start training")
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
-        train_one_epoch(model, criterion, optimizer, train_dataloader, device, epoch, args, model_ema, scaler, logging)
+        train_one_epoch(model, criterion, optimizer, train_dataloader, device, epoch, args, scaler, logging)
         lr_scheduler.step()
         evaluate(model, criterion, test_dataloader, device=device, args=args, logging=logging)
-        if model_ema:
-            evaluate(model_ema, criterion, test_dataloader, device=device, args=args, log_freq=args.log_freq, log_suffix="EMA")
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
@@ -396,8 +362,6 @@ def main(args):
                 "epoch": epoch,
                 "args": args,
             }
-            if model_ema:
-                checkpoint["model_ema"] = model_ema.state_dict()
             if scaler:
                 checkpoint["scaler"] = scaler.state_dict()
             utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
