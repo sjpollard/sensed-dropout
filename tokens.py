@@ -1,4 +1,3 @@
-from multiprocessing import process
 import os
 import argparse
 import time
@@ -9,13 +8,15 @@ import torchshow as ts
 
 import numpy as np
 
+import pandas as pd
+
 from sklearn.metrics import accuracy_score
 
 import pysensors as ps
 from pysensors.classification import SSPOC
 from pysensors.reconstruction import SSPOR
 
-from patchify import patchify, unpatchify
+from patchify import patchify
 
 import data
 
@@ -114,6 +115,39 @@ parser.add_argument(
     help="Saves outputs to file."
 )
 
+def generate_tokens(args):
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, download=args.download, greyscale=False)
+    batch = next(iter(dataloader))
+    X_train, y_train = batch[0], batch[1]
+
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, greyscale=False)
+    batch = next(iter(dataloader))
+    X_test, y_test = batch[0], batch[1]
+
+    n, c, h, w = X_train.size()
+    
+    model = get_model(args.fit_type, args.basis, args.modes, args.sensors, args.l1_penalty)
+
+    token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.patch, args.tokens)
+
+    if args.show_basis: show_basis(model, h, w)
+    if args.show_sensors: show_sensors(model, h, w)
+    if args.show_tokens: show_tokens(token_mask)
+
+    if args.score:
+        if args.fit_type == 'r':
+            print(f'Train score: {-model.score(process_tensor(X_train))}')
+            print(f'Test score: {-model.score(process_tensor(X_test))}')
+        elif args.fit_type == 'c':
+            y_pred = model.predict(process_tensor(X_train)[:,model.selected_sensors])
+            print(f'Train accuracy: {accuracy_score(y_train.numpy(), y_pred) * 100}%')
+            y_pred = model.predict(process_tensor(X_test)[:,model.selected_sensors])
+            print(f'Test accuracy: {accuracy_score(y_test.numpy(), y_pred) * 100}%')
+    
+    if args.output:
+        filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
+        save_output(filename, model, h, w, token_mask)
+
 def get_basis(basis: str, n_basis_modes: int):
     if basis == 'SVD':
         return ps.basis.SVD(n_basis_modes=n_basis_modes)
@@ -179,8 +213,8 @@ def random_mask(h: int, w: int, k: int):
 
 def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: np.ndarray):
     output_modes = 100
-    if not os.path.exists(f'token_masks'):
-            os.makedirs(f'token_masks')
+    if not os.path.exists('token_masks'):
+            os.makedirs('token_masks')
     
     modes = model.basis.matrix_representation().shape[1]
     ts.save(model.basis.matrix_representation().T.reshape((modes, h, w))[:output_modes], f'token_masks/{filename}/modes_{filename}.jpg', mode='grayscale')
@@ -193,7 +227,7 @@ def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: np.
 
     torch.save(torch.from_numpy(token_mask), f'token_masks/{filename}/token_mask_{filename}.pt')
 
-def main(args):
+def benchmark(args):
     dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, download=args.download, greyscale=False)
     batch = next(iter(dataloader))
     X_train, y_train = batch[0], batch[1]
@@ -204,27 +238,36 @@ def main(args):
 
     n, c, h, w = X_train.size()
 
-    model = get_model(args.fit_type, args.basis, args.modes, args.sensors, args.l1_penalty)
+    train_scores = []
+    test_scores = []
 
-    token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.patch, args.tokens)
+    sensors_list = range(1, args.sensors + 1)
 
-    if args.show_basis: show_basis(model, h, w)
-    if args.show_sensors: show_sensors(model, h, w)
-    if args.show_tokens: show_tokens(token_mask)
+    for sensors in sensors_list:
 
-    if args.score:
-        if args.fit_type == 'r':
-            print(f'Train score: {-model.score(process_tensor(X_train))}')
-            print(f'Test score: {-model.score(process_tensor(X_test))}')
-        elif args.fit_type == 'c':
+        model = get_model(args.fit_type, args.basis, args.modes, sensors, args.l1_penalty)
+
+        if args.fit_type == 'r': 
+            model.fit(process_tensor(X_train), quiet=True)
+            train_scores.append(-model.score(process_tensor(X_train)))
+            test_scores.append(-model.score(process_tensor(X_test)))
+        elif args.fit_type == 'c': 
+            model.fit(process_tensor(X_train), y_train.numpy(), quiet=True)
             y_pred = model.predict(process_tensor(X_train)[:,model.selected_sensors])
-            print(f'Train accuracy: {accuracy_score(y_train.numpy(), y_pred) * 100}%')
+            train_scores.append(accuracy_score(y_train, y_pred))
             y_pred = model.predict(process_tensor(X_test)[:,model.selected_sensors])
-            print(f'Test accuracy: {accuracy_score(y_test.numpy(), y_pred) * 100}%')
-    
-    if args.output:
-        filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
-        save_output(filename, model, h, w, token_mask)
+            test_scores.append(accuracy_score(y_test, y_pred))
+
+    if not os.path.exists('out'):
+            os.makedirs('out')
+
+    df = pd.DataFrame(data={'sensors': sensors_list, 'train': train_scores, 'test': test_scores})
+    filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}'
+    df.to_csv(f'out/{filename}.csv', index=False)
+
+def main(args):
+    if args.benchmark: benchmark(args)
+    else: generate_tokens(args)
 
 if __name__ == "__main__":
     main(parser.parse_args())
