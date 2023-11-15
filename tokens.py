@@ -134,29 +134,6 @@ def get_model(fit_type: str, basis: str, modes: int, sensors: int, l1_penalty: f
     elif fit_type == 'c': model = SSPOC(basis=basis, n_sensors=sensors, l1_penalty=l1_penalty)
     return model
 
-def show_basis(model: SSPOC | SSPOR, h: int, w: int, n_modes: int = 100):
-    modes = model.basis.matrix_representation().shape[1]
-    ts.show(np.reshape(model.basis.matrix_representation().T, (modes, h, w))[:n_modes], mode='grayscale')
-
-def show_sensors(model: SSPOC | SSPOR, h: int, w: int):
-    sensors = np.zeros(h * w)
-    np.put(sensors, model.get_selected_sensors(), 1)
-    ts.show(np.reshape(sensors, (h, w)), mode='grayscale')
-
-def show_tokens(patched_sensors: np.ndarray, token_mask: np.ndarray, patch: int, h: int, w: int):
-    patch_shape = (patch, patch)
-
-    tokens = np.zeros_like(patched_sensors)
-    
-    token_indices = np.argwhere(token_mask)
-
-    for index in token_indices:
-        tokens[index[0]][index[1]] = np.ones(patch_shape)
-
-    tokens = unpatchify(tokens, (h, w))
-
-    ts.show(tokens, mode='grayscale')
-
 def sensors_to_patches(model: SSPOC | SSPOR, patch: int, h: int, w: int):
     patch_shape = (patch, patch)
 
@@ -175,26 +152,56 @@ def patches_to_tokens(patched_sensors: np.ndarray, k: int):
     token_mask = token_mask.reshape((patch_sums.shape))
     return token_mask
 
+def fit_mask(model: SSPOC | SSPOR, fit_type: str, x: torch.Tensor, y: torch.Tensor, patch: int, tokens: int):
+    n, c, h, w = x.size()
+    processed, y = (x.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy(), y.numpy()
+
+    if fit_type == 'r': model.fit(processed)
+    elif fit_type == 'c': model.fit(processed, y)
+
+    patched_sensors = sensors_to_patches(model, patch, h, w)
+    return patches_to_tokens(patched_sensors, tokens)
+
+def show_basis(model: SSPOC | SSPOR, h: int, w: int, n_modes: int = 100):
+    modes = model.basis.matrix_representation().shape[1]
+    ts.show(np.reshape(model.basis.matrix_representation().T, (modes, h, w))[:n_modes], mode='grayscale')
+
+def show_sensors(model: SSPOC | SSPOR, h: int, w: int):
+    sensors = np.zeros(h * w)
+    np.put(sensors, model.get_selected_sensors(), 1)
+    ts.show(np.reshape(sensors, (h, w)), mode='grayscale')
+
+def show_tokens(token_mask: np.ndarray):
+    ts.show(token_mask, mode='grayscale')
+
 def random_mask(h: int, w: int, k: int):
     n = h * w
     token_mask = torch.reshape(torch.repeat_interleave(torch.tensor([False, True]), torch.tensor([n-k, k]))[torch.randperm(n)], (h, w))
     return token_mask
 
 def print_classification_accuracy(model: SSPOC, X_train, y_train, X_test, y_test):
-    n, h, w = X_train.shape
+    n, c, h, w = X_train.size()
 
-    y_pred = model.predict(X_train.reshape((n, -1))[:,model.selected_sensors])
-    print(f'Train accuracy: {accuracy_score(y_train, y_pred) * 100}%')
+    processed, y = (X_train.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy(), y_train.numpy()
+
+    y_pred = model.predict(processed[:,model.selected_sensors])
+    print(f'Train accuracy: {accuracy_score(y, y_pred) * 100}%')
+
+    processed, y = (X_test.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy(), y_test.numpy()
 
     y_pred = model.predict(X_test.reshape((n, -1))[:,model.selected_sensors])
-    print(f'Test accuracy: {accuracy_score(y_test, y_pred) * 100}%')
+    print(f'Test accuracy: {accuracy_score(y, y_pred) * 100}%')
 
 def print_reconstruction_error(model: SSPOR, X_train, X_test):
-    n, h, w = X_train.shape
+    n, c, h, w = X_train.size()
 
-    print(f'Train score: {-model.score(X_train.reshape((n, -1)))}')
+    processed = (X_train.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy()
 
-    print(f'Test score: {-model.score(X_test.reshape((n, -1)))}')
+    print(f'Train score: {-model.score(processed)}')
+
+    processed = (X_test.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy()
+
+    print(f'Test score: {-model.score(processed)}')
 
 def score(x, y):
     return np.sqrt(np.mean((x - y) ** 2))
@@ -229,29 +236,23 @@ def save_output(filename, model : SSPOC | SSPOR, h: int, w: int, token_mask: np.
     torch.save(torch.from_numpy(token_mask), f'token_masks/{filename}/token_mask_{filename}.pt')
 
 def main(args):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, download=args.download, greyscale=True)
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, download=args.download, greyscale=False)
     batch = next(iter(dataloader))
-    X_train, y_train = batch[0].squeeze().numpy(), batch[1].numpy()
+    X_train, y_train = batch[0], batch[1]
 
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, greyscale=True)
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, greyscale=False)
     batch = next(iter(dataloader))
-    X_test, y_test = batch[0].squeeze().numpy(), batch[1].numpy()
+    X_test, y_test = batch[0], batch[1]
 
-    n, h, w = X_train.shape
+    n, c, h, w = X_train.size()
 
     model = get_model(args.fit_type, args.basis, args.modes, args.sensors, args.l1_penalty)
 
-    start_time = time.time()
-    if args.fit_type == 'r': model.fit(X_train.reshape((n, -1)))
-    elif args.fit_type == 'c': model.fit(X_train.reshape((n, -1)), y_train)
-    print(time.time() - start_time)
-
-    if args.patch != 0: patched_sensors = sensors_to_patches(model, args.patch, h, w)
-    if args.tokens != 0: token_mask = patches_to_tokens(patched_sensors, args.tokens)
+    token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.patch, args.tokens)
 
     if args.show_basis: show_basis(model, h, w)
     if args.show_sensors: show_sensors(model, h, w)
-    if args.show_tokens: show_tokens(patched_sensors, token_mask, args.patch, h, w)
+    if args.show_tokens: show_tokens(token_mask)
 
     if args.print_accuracy: print_classification_accuracy(model, X_train, y_train, X_test, y_test)
     elif args.print_error: print_reconstruction_error(model, X_train, X_test)
