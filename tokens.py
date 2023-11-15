@@ -1,3 +1,4 @@
+from multiprocessing import process
 import os
 import argparse
 import time
@@ -95,16 +96,10 @@ parser.add_argument(
     help="Reshapes and displays active token locations."
 )
 parser.add_argument(
-    "--print-accuracy",
+    "--score",
     default=False,
     action='store_true',
-    help="If using SSPOC for classification, checks accuracy against train and test."
-)
-parser.add_argument(
-    "--print-error",
-    default=False,
-    action='store_true',
-    help="If using SSPOR for reconstruction, checks error against train and test."
+    help="Calculates reconstruction error/classification accuracy on a train and test set."
 )
 parser.add_argument(
     "--benchmark",
@@ -134,7 +129,20 @@ def get_model(fit_type: str, basis: str, modes: int, sensors: int, l1_penalty: f
     elif fit_type == 'c': model = SSPOC(basis=basis, n_sensors=sensors, l1_penalty=l1_penalty)
     return model
 
-def sensors_to_patches(model: SSPOC | SSPOR, patch: int, h: int, w: int):
+def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: torch.Tensor, patch: int, tokens: int):
+    n, c, h, w = x.size()
+
+    if fit_type == 'r': model.fit(process_tensor(x))
+    elif fit_type == 'c': model.fit(process_tensor(x), y.numpy())
+
+    patched_sensors = sensors_to_patches(model, patch, h, w)
+    return patches_to_tokens(patched_sensors, tokens)
+
+def process_tensor(x: torch.Tensor):
+    n = x.size(0)
+    return (x.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy()
+
+def sensors_to_patches(model: SSPOR | SSPOC, patch: int, h: int, w: int):
     patch_shape = (patch, patch)
 
     sensors = np.zeros(h * w)
@@ -152,21 +160,11 @@ def patches_to_tokens(patched_sensors: np.ndarray, k: int):
     token_mask = token_mask.reshape((patch_sums.shape))
     return token_mask
 
-def fit_mask(model: SSPOC | SSPOR, fit_type: str, x: torch.Tensor, y: torch.Tensor, patch: int, tokens: int):
-    n, c, h, w = x.size()
-    processed, y = (x.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy(), y.numpy()
-
-    if fit_type == 'r': model.fit(processed)
-    elif fit_type == 'c': model.fit(processed, y)
-
-    patched_sensors = sensors_to_patches(model, patch, h, w)
-    return patches_to_tokens(patched_sensors, tokens)
-
-def show_basis(model: SSPOC | SSPOR, h: int, w: int, n_modes: int = 100):
+def show_basis(model: SSPOR | SSPOC, h: int, w: int, n_modes: int = 100):
     modes = model.basis.matrix_representation().shape[1]
     ts.show(np.reshape(model.basis.matrix_representation().T, (modes, h, w))[:n_modes], mode='grayscale')
 
-def show_sensors(model: SSPOC | SSPOR, h: int, w: int):
+def show_sensors(model: SSPOR | SSPOC, h: int, w: int):
     sensors = np.zeros(h * w)
     np.put(sensors, model.get_selected_sensors(), 1)
     ts.show(np.reshape(sensors, (h, w)), mode='grayscale')
@@ -179,47 +177,7 @@ def random_mask(h: int, w: int, k: int):
     token_mask = torch.reshape(torch.repeat_interleave(torch.tensor([False, True]), torch.tensor([n-k, k]))[torch.randperm(n)], (h, w))
     return token_mask
 
-def print_classification_accuracy(model: SSPOC, X_train, y_train, X_test, y_test):
-    n, c, h, w = X_train.size()
-
-    processed, y = (X_train.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy(), y_train.numpy()
-
-    y_pred = model.predict(processed[:,model.selected_sensors])
-    print(f'Train accuracy: {accuracy_score(y, y_pred) * 100}%')
-
-    processed, y = (X_test.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy(), y_test.numpy()
-
-    y_pred = model.predict(X_test.reshape((n, -1))[:,model.selected_sensors])
-    print(f'Test accuracy: {accuracy_score(y, y_pred) * 100}%')
-
-def print_reconstruction_error(model: SSPOR, X_train, X_test):
-    n, c, h, w = X_train.size()
-
-    processed = (X_train.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy()
-
-    print(f'Train score: {-model.score(processed)}')
-
-    processed = (X_test.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy()
-
-    print(f'Test score: {-model.score(processed)}')
-
-def score(x, y):
-    return np.sqrt(np.mean((x - y) ** 2))
-
-def benchmark(model: SSPOC | SSPOR, fit_type: str, sensors: int, X_train, y_train, X_test, y_test):
-    n, h, w = X_train.shape
-    output = np.zeros((sensors, 2))
-    if fit_type == 'c':
-        for i in range(1, sensors + 1):
-            output[0] = accuracy_score(y_train, model.predict(X_train.reshape((n, -1))[:,model.selected_sensors[:i]]))
-            output[1] = accuracy_score(y_test, model.predict(X_test.reshape((n, -1))[:,model.selected_sensors[:i]]))
-    elif fit_type == 'r':
-        for i in range(1, sensors + 1):
-            output[0] = score(X_train, model.predict(X_train.reshape((n, -1))[:,model.selected_sensors[:i]]))
-            output[1] = score(X_test, model.predict(X_test.reshape((n, -1))[:,model.selected_sensors[:i]]))
-    print(output)
-
-def save_output(filename, model : SSPOC | SSPOR, h: int, w: int, token_mask: np.ndarray):
+def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: np.ndarray):
     output_modes = 100
     if not os.path.exists(f'token_masks'):
             os.makedirs(f'token_masks')
@@ -254,10 +212,15 @@ def main(args):
     if args.show_sensors: show_sensors(model, h, w)
     if args.show_tokens: show_tokens(token_mask)
 
-    if args.print_accuracy: print_classification_accuracy(model, X_train, y_train, X_test, y_test)
-    elif args.print_error: print_reconstruction_error(model, X_train, X_test)
-
-    if args.benchmark: benchmark(model, args.fit_type, args.sensors, X_train, y_train, X_test, y_test)
+    if args.score:
+        if args.fit_type == 'r':
+            print(f'Train score: {-model.score(process_tensor(X_train))}')
+            print(f'Test score: {-model.score(process_tensor(X_test))}')
+        elif args.fit_type == 'c':
+            y_pred = model.predict(process_tensor(X_train)[:,model.selected_sensors])
+            print(f'Train accuracy: {accuracy_score(y_train.numpy(), y_pred) * 100}%')
+            y_pred = model.predict(process_tensor(X_test)[:,model.selected_sensors])
+            print(f'Test accuracy: {accuracy_score(y_test.numpy(), y_pred) * 100}%')
     
     if args.output:
         filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
