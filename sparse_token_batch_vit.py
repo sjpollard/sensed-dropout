@@ -22,7 +22,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         num_heads: int,
         hidden_dim: int,
         mlp_dim: int,
-        ps_model: SSPOC | SSPOR,
+        ps_model: SSPOR | SSPOC,
         fit_type: str,
         patch: int,
         tokens: int,
@@ -67,15 +67,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         )
     
     def update_mask(self, x: torch.Tensor, y: torch.Tensor):
-        start_time = time.time()
-        n, height, width = x.size(0), x.size(2), x.size(3)
-        processed = (x.sum(dim=1) / 3).reshape((n, -1)).numpy()
-        if self.fit_type == 'c':
-            self.ps_model.fit(processed, y.numpy())
-        else: self.ps_model.fit(processed)
-        patched_sensors = tokens.sensors_to_patches(self.ps_model, self.patch, height, width)
-        self.token_mask = tokens.patches_to_tokens(patched_sensors, self.tokens)
-        print(time.time() - start_time)
+        self.token_mask = tokens.fit_mask(self.model, self.fit_type, x, y, self.patch, self.tokens)
 
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
         n, c, h, w = x.shape
@@ -106,7 +98,7 @@ def _sparse_token_batch_vision_transformer(
     num_heads: int,
     hidden_dim: int,
     mlp_dim: int,
-    ps_model: SSPOC | SSPOR,
+    ps_model: SSPOR | SSPOC,
     fit_type: str,
     patch: int,
     tokens: int,
@@ -134,7 +126,7 @@ def _sparse_token_batch_vision_transformer(
 
     return model
 
-def sparse_token_batch_vit_b_16(*, ps_model: SSPOC | SSPOR, fit_type: str, patch: int, tokens: int, random_tokens: int,
+def sparse_token_batch_vit_b_16(*, ps_model: SSPOR | SSPOC, fit_type: str, patch: int, tokens: int, random_tokens: int,
                                 weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenBatchVisionTransformer:
     return _sparse_token_batch_vision_transformer(
         patch_size=16,
