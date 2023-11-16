@@ -192,7 +192,7 @@ def patches_to_tokens(patched_sensors: np.ndarray, k: int):
     token_mask = np.zeros((patch_sums.shape[0] * patch_sums.shape[1]), dtype=bool)
     token_mask[np.argsort(patch_sums.ravel())[:-k-1:-1]] = True
     token_mask = token_mask.reshape((patch_sums.shape))
-    return token_mask
+    return torch.from_numpy(token_mask)
 
 def show_basis(model: SSPOR | SSPOC, h: int, w: int, n_modes: int = 100):
     modes = model.basis.matrix_representation().shape[1]

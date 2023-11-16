@@ -48,6 +48,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
                          conv_stem_configs
         )
         
+        self.token_mask = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=bool)
         self.ps_model = ps_model
         self.fit_type = fit_type
         self.patch = patch
@@ -67,7 +68,13 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         )
     
     def update_mask(self, x: torch.Tensor, y: torch.Tensor):
-        self.token_mask = tokens.fit_mask(self.model, self.fit_type, x, y, self.patch, self.tokens)
+        self.token_mask = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=bool)
+        if self.tokens != 0:
+            self.token_mask = tokens.fit_mask(self.ps_model, self.fit_type, x, y, self.patch, self.tokens)
+        if self.random_tokens != 0:
+            zeros = (self.token_mask.flatten() == 0).argwhere().squeeze()
+            new_ones = zeros[torch.randperm(len(zeros))][:self.random_tokens]
+            self.token_mask.flatten()[new_ones] = True
 
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
         n, c, h, w = x.shape
