@@ -166,8 +166,8 @@ def evaluate(model, criterion, data_loader, device, args, print_freq=100, log_su
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
             if args.model == 'sparse_token_batch_vit_b_16': 
-                if args.distributed: model.module.update_mask(image, target)
-                else: model.update_mask(image, target)
+                if args.distributed: model.module.update_inference_mask()
+                else: model.update_inference_mask()
             image = torchvision.transforms.functional.resize(image, size=(128, 128), antialias=False)
             image = image.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)

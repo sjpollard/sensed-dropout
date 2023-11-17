@@ -72,12 +72,21 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         self.token_mask = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=bool)
         if self.tokens != 0:
             self.token_mask = tokens.fit_mask(self.ps_model, self.fit_type, x, y, self.patch, self.tokens)
+        self.heatmap += self.token_mask
         if self.random_tokens != 0:
             zeros = (self.token_mask.ravel() == 0).argwhere().squeeze()
             new_ones = zeros[torch.randperm(len(zeros))][:self.random_tokens]
             self.token_mask.ravel()[new_ones] = True
-        self.heatmap += self.token_mask
-        print(self.heatmap)
+
+    def update_inference_mask(self):
+        self.token_mask = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=bool)
+        if self.tokens != 0:
+            new_ones = torch.argsort(self.heatmap.ravel(), descending=True)[:self.tokens]
+            self.token_mask.ravel()[new_ones] = True
+        if self.random_tokens != 0:
+            zeros = (self.token_mask.ravel() == 0).argwhere().squeeze()
+            new_ones = zeros[torch.randperm(len(zeros))][:self.random_tokens]
+            self.token_mask.ravel()[new_ones] = True
 
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
         n, c, h, w = x.shape
