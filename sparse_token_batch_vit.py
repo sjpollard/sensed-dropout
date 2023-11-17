@@ -49,6 +49,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         )
         
         self.token_mask = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=bool)
+        self.heatmap = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=int)
         self.ps_model = ps_model
         self.fit_type = fit_type
         self.patch = patch
@@ -72,9 +73,11 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         if self.tokens != 0:
             self.token_mask = tokens.fit_mask(self.ps_model, self.fit_type, x, y, self.patch, self.tokens)
         if self.random_tokens != 0:
-            zeros = (self.token_mask.flatten() == 0).argwhere().squeeze()
+            zeros = (self.token_mask.ravel() == 0).argwhere().squeeze()
             new_ones = zeros[torch.randperm(len(zeros))][:self.random_tokens]
-            self.token_mask.flatten()[new_ones] = True
+            self.token_mask.ravel()[new_ones] = True
+        self.heatmap += self.token_mask
+        print(self.heatmap)
 
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
         n, c, h, w = x.shape
@@ -89,7 +92,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         # (n, hidden_dim, n_h, n_w) -> (n, hidden_dim, (n_h * n_w))
         x = x.reshape(n, self.hidden_dim, n_h * n_w)
 
-        x = x[:, :, self.token_mask.flatten()]
+        x = x[:, :, self.token_mask.ravel()]
 
         # (n, hidden_dim, (n_h * n_w)) -> (n, (n_h * n_w), hidden_dim)
         # The self attention layer expects inputs in the format (N, S, E)
