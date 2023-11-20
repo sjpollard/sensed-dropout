@@ -24,7 +24,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         mlp_dim: int,
         ps_model: SSPOR | SSPOC,
         fit_type: str,
-        patch: int,
+        sensing_patch_size: int,
         tokens: int,
         random_tokens: int,
         dropout: float = 0.0,
@@ -48,11 +48,12 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
                          conv_stem_configs
         )
         
-        self.token_mask = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=bool)
-        self.heatmap = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=int)
+        self.mask_dim = (self.image_size // self.patch_size, self.image_size // self.patch_size)
+        self.token_mask = torch.zeros(self.mask_dim, dtype=bool)
+        self.heatmap = torch.zeros(self.mask_dim, dtype=int)
         self.ps_model = ps_model
         self.fit_type = fit_type
-        self.patch = patch
+        self.sensing_patch_size = sensing_patch_size
         self.tokens = tokens
         self.random_tokens = random_tokens
         self.seq_length = tokens + random_tokens + 1
@@ -69,9 +70,9 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         )
     
     def update_mask(self, x: torch.Tensor, y: torch.Tensor):
-        self.token_mask = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=bool)
+        self.token_mask = torch.zeros(self.mask_dim, dtype=bool)
         if self.tokens != 0:
-            self.token_mask = tokens.fit_mask(self.ps_model, self.fit_type, x, y, self.patch, self.tokens)
+            self.token_mask = tokens.fit_mask(self.ps_model, self.fit_type, x, y, self.sensing_patch_size, self.tokens)
         self.heatmap += self.token_mask
         if self.random_tokens != 0:
             zeros = (self.token_mask.ravel() == 0).argwhere().squeeze()
@@ -79,7 +80,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
             self.token_mask.ravel()[new_ones] = True
 
     def update_inference_mask(self):
-        self.token_mask = torch.zeros((self.image_size // self.patch_size, self.image_size // self.patch_size), dtype=bool)
+        self.token_mask = torch.zeros(self.mask_dim, dtype=bool)
         if self.tokens != 0:
             new_ones = torch.argsort(self.heatmap.ravel(), descending=True)[:self.tokens]
             self.token_mask.ravel()[new_ones] = True
@@ -119,7 +120,7 @@ def _sparse_token_batch_vision_transformer(
     mlp_dim: int,
     ps_model: SSPOR | SSPOC,
     fit_type: str,
-    patch: int,
+    sensing_patch_size: int,
     tokens: int,
     random_tokens: int,
     weights,
@@ -137,7 +138,7 @@ def _sparse_token_batch_vision_transformer(
         mlp_dim=mlp_dim,
         ps_model=ps_model,
         fit_type=fit_type,
-        patch=patch,
+        sensing_patch_size=sensing_patch_size,
         tokens=tokens,
         random_tokens=random_tokens,
         **kwargs,
@@ -145,7 +146,7 @@ def _sparse_token_batch_vision_transformer(
 
     return model
 
-def sparse_token_batch_vit_b_16(*, ps_model: SSPOR | SSPOC, fit_type: str, patch: int, tokens: int, random_tokens: int,
+def sparse_token_batch_vit_b_16(*, ps_model: SSPOR | SSPOC, fit_type: str, sensing_patch_size: int, tokens: int, random_tokens: int,
                                 weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenBatchVisionTransformer:
     return _sparse_token_batch_vision_transformer(
         patch_size=16,
@@ -155,7 +156,7 @@ def sparse_token_batch_vit_b_16(*, ps_model: SSPOR | SSPOC, fit_type: str, patch
         mlp_dim=3072,
         ps_model=ps_model,
         fit_type=fit_type,
-        patch=patch,
+        sensing_patch_size=sensing_patch_size,
         tokens=tokens,
         random_tokens=random_tokens,
         weights=weights,
