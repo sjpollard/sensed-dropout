@@ -166,8 +166,8 @@ def evaluate(model, criterion, data_loader, device, args, print_freq=100, log_su
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
             if args.model == 'sparse_token_batch_vit_b_16': 
-                if args.distributed: model.module.update_mask(image, target)
-                else: model.update_mask(image, target)
+                if args.distributed: model.module.update_inference_mask()
+                else: model.update_inference_mask()
             image = torchvision.transforms.functional.resize(image, size=(128, 128), antialias=False)
             image = image.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
@@ -196,18 +196,19 @@ def evaluate(model, criterion, data_loader, device, args, print_freq=100, log_su
     # gather the stats from all processes
 
     num_processed_samples = utils.reduce_across_processes(num_processed_samples)
-    if (
-        hasattr(data_loader.dataset, "__len__")
-        and len(data_loader.dataset) != num_processed_samples
-        and torch.distributed.get_rank() == 0
-    ):
-        # See FIXME above
-        warnings.warn(
-            f"It looks like the dataset has {len(data_loader.dataset)} samples, but {num_processed_samples} "
-            "samples were used for the validation, which might bias the results. "
-            "Try adjusting the batch size and / or the world size. "
-            "Setting the world size to 1 is always a safe bet."
-        )
+    if args.distributed:
+        if (
+            hasattr(data_loader.dataset, "__len__")
+            and len(data_loader.dataset) != num_processed_samples
+            and torch.distributed.get_rank() == 0
+        ):
+            # See FIXME above
+            warnings.warn(
+                f"It looks like the dataset has {len(data_loader.dataset)} samples, but {num_processed_samples} "
+                "samples were used for the validation, which might bias the results. "
+                "Try adjusting the batch size and / or the world size. "
+                "Setting the world size to 1 is always a safe bet."
+            )
 
     metric_logger.synchronize_between_processes()
 
