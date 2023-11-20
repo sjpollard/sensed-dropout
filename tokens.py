@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--batch-size", "-n",
-    default=-1,
+    default=None,
     type=int,
     help="Number of values to process from the dataset for each fit."
 )
@@ -130,6 +130,8 @@ def generate_tokens(args):
 
     token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.patch, args.tokens)
 
+    print(model.selected_sensors)
+
     if args.show_basis: show_basis(model, h, w)
     if args.show_sensors: show_sensors(model, h, w)
     if args.show_tokens: show_tokens(token_mask)
@@ -199,8 +201,10 @@ def show_basis(model: SSPOR | SSPOC, h: int, w: int, n_modes: int = 100):
     ts.show(np.reshape(model.basis.matrix_representation().T, (modes, h, w))[:n_modes], mode='grayscale')
 
 def show_sensors(model: SSPOR | SSPOC, h: int, w: int):
+    n_sensors = len(model.selected_sensors)
     sensors = np.zeros(h * w)
-    np.put(sensors, model.get_selected_sensors(), 1)
+    values = np.ones(n_sensors) - (np.arange(n_sensors) * 1/n_sensors)
+    np.put(sensors, model.get_selected_sensors(), values)
     ts.show(np.reshape(sensors, (h, w)), mode='grayscale')
 
 def show_tokens(token_mask: np.ndarray):
