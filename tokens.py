@@ -160,7 +160,7 @@ def benchmark(args):
     df.to_csv(f'out/{filename}.csv', index=False)
 
 def generate_tokens(args):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, download=args.download, greyscale=False)
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=True, download=args.download, greyscale=False)
     batch = next(iter(dataloader))
     X_train, y_train = batch[0], batch[1]
 
