@@ -79,6 +79,12 @@ parser.add_argument(
     help="Number of tokens to be selected."
 )
 parser.add_argument(
+    "--strategy",
+    choices=["frequency", "ranking"],
+    default="frequency",
+    help="Determines the strategy used to gather tokens for the mask."
+)
+parser.add_argument(
     "--show-basis",
     default=False,
     action='store_true',
@@ -154,7 +160,7 @@ def benchmark(args):
     df.to_csv(f'out/{filename}.csv', index=False)
 
 def generate_tokens(args):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, download=args.download, greyscale=False)
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, download=args.download, greyscale=False)
     batch = next(iter(dataloader))
     X_train, y_train = batch[0], batch[1]
 
@@ -166,7 +172,7 @@ def generate_tokens(args):
     
     model = get_model(args.fit_type, args.basis, args.modes, args.sensors, args.l1_penalty)
 
-    token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.patch, args.tokens)
+    token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.patch, args.tokens, args.strategy)
 
     if args.show_basis: show_basis(model, h, w)
     if args.show_sensors: show_sensors(model, h, w)
@@ -183,7 +189,7 @@ def generate_tokens(args):
             print(f'Test accuracy: {accuracy_score(y_test.numpy(), y_pred) * 100}%')
     
     if args.output:
-        filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}'
+        filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}_{args.strategy}'
         save_output(filename, model, h, w, token_mask)
 
 def get_basis(basis: str, n_basis_modes: int):
@@ -201,21 +207,19 @@ def get_model(fit_type: str, basis: str, modes: int, sensors: int, l1_penalty: f
     elif fit_type == 'c': model = SSPOC(basis=basis, n_sensors=sensors, l1_penalty=l1_penalty)
     return model
 
-def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: torch.Tensor, patch: int, tokens: int):
+def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: torch.Tensor, patch: int, tokens: int, strategy: str):
     n, c, h, w = x.size()
 
     if fit_type == 'r': model.fit(process_tensor(x))
     elif fit_type == 'c': model.fit(process_tensor(x), y.numpy())
 
-    return mask_from_sensors(model.selected_sensors, patch, h, w, tokens)
+    return mask_from_sensors(model.selected_sensors, patch, h, w, tokens, strategy)
 
 def process_tensor(x: torch.Tensor):
     n = x.size(0)
     return (x.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy()
 
-def mask_from_sensors(selected_sensors: list[int], patch: int, h: int, w: int, k: int):
-    token_gathering = 'ranking'
-    
+def mask_from_sensors(selected_sensors: list[int], patch: int, h: int, w: int, k: int, strategy: str='frequency'):    
     patch_shape = (patch, patch)
 
     sensors = np.zeros(h * w)
@@ -227,10 +231,10 @@ def mask_from_sensors(selected_sensors: list[int], patch: int, h: int, w: int, k
     mask_h, mask_w = patched_sensors.shape[:2]
     token_mask = np.zeros((mask_h * mask_w), dtype=bool)
 
-    if token_gathering == 'frequency':
+    if strategy == 'frequency':
         patch_sums = np.sum(patched_sensors, axis=(2,3))
         token_indices = np.argsort(patch_sums.ravel())[:-k-1:-1]
-    elif token_gathering == 'ranking':
+    elif strategy == 'ranking':
         y_indices = selected_sensors // (patch * w)
         x_indices = ((selected_sensors % (patch * w)) % w) // patch
         patch_indices = y_indices * mask_w + x_indices
@@ -249,7 +253,7 @@ def show_sensors(model: SSPOR | SSPOC, h: int, w: int):
     sensors = np.zeros(h * w)
     values = np.ones(n_sensors) - (np.arange(n_sensors) * 1/n_sensors)
     np.put(sensors, model.get_selected_sensors(), values)
-    ts.show(np.reshape(sensors, (h, w)), mode='grayscale')
+    ts.show(sensors.reshape((h, w)), mode='grayscale')
 
 def show_tokens(token_mask: np.ndarray):
     ts.show(token_mask, mode='grayscale')
@@ -259,7 +263,7 @@ def random_mask(h: int, w: int, k: int):
     token_mask = torch.reshape(torch.repeat_interleave(torch.tensor([False, True]), torch.tensor([n-k, k]))[torch.randperm(n)], (h, w))
     return token_mask
 
-def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: np.ndarray):
+def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: torch.Tensor):
     output_modes = 100
     if not os.path.exists('token_masks'):
             os.makedirs('token_masks')
@@ -267,13 +271,15 @@ def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: np.
     modes = model.basis.matrix_representation().shape[1]
     ts.save(model.basis.matrix_representation().T.reshape((modes, h, w))[:output_modes], f'token_masks/{filename}/modes_{filename}.jpg', mode='grayscale')
 
+    n_sensors = len(model.selected_sensors)
     sensors = np.zeros(h * w)
-    np.put(sensors, model.get_selected_sensors(), 1)
+    values = np.ones(n_sensors) - (np.arange(n_sensors) * 1/n_sensors)
+    np.put(sensors, model.get_selected_sensors(), values)
     ts.save(sensors.reshape((h, w)), f'token_masks/{filename}/sensors_{filename}.jpg', mode='grayscale')
 
     ts.save(token_mask, f'token_masks/{filename}/tokens_{filename}.jpg', mode='grayscale')
 
-    torch.save(torch.from_numpy(token_mask), f'token_masks/{filename}/token_mask_{filename}.pt')
+    torch.save(token_mask, f'token_masks/{filename}/token_mask_{filename}.pt')
 
 def main(args):
     if args.benchmark: benchmark(args)
