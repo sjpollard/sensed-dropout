@@ -27,6 +27,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         sensing_patch_size: int,
         tokens: int,
         random_tokens: int,
+        strategy: str,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
         num_classes: int = 1000,
@@ -56,6 +57,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         self.sensing_patch_size = sensing_patch_size
         self.tokens = tokens
         self.random_tokens = random_tokens
+        self.strategy = strategy
         self.seq_length = tokens + random_tokens + 1
 
         self.encoder = torchvision.models.vision_transformer.Encoder(
@@ -72,7 +74,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
     def update_mask(self, x: torch.Tensor, y: torch.Tensor):
         self.token_mask = torch.zeros(self.mask_dim, dtype=bool)
         if self.tokens != 0:
-            self.token_mask = tokens.fit_mask(self.ps_model, self.fit_type, x, y, self.sensing_patch_size, self.tokens)
+            self.token_mask = tokens.fit_mask(self.ps_model, self.fit_type, x, y, self.sensing_patch_size, self.tokens, self.strategy)
         self.heatmap += self.token_mask
         if self.random_tokens != 0:
             zeros = (self.token_mask.ravel() == 0).argwhere().squeeze()
@@ -123,6 +125,7 @@ def _sparse_token_batch_vision_transformer(
     sensing_patch_size: int,
     tokens: int,
     random_tokens: int,
+    strategy: str,
     weights,
     progress: bool,
     **kwargs: Any,
@@ -141,13 +144,14 @@ def _sparse_token_batch_vision_transformer(
         sensing_patch_size=sensing_patch_size,
         tokens=tokens,
         random_tokens=random_tokens,
+        strategy=strategy,
         **kwargs,
     )
 
     return model
 
 def sparse_token_batch_vit_b_16(*, ps_model: SSPOR | SSPOC, fit_type: str, sensing_patch_size: int, tokens: int, random_tokens: int,
-                                weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenBatchVisionTransformer:
+                                strategy: str, weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenBatchVisionTransformer:
     return _sparse_token_batch_vision_transformer(
         patch_size=16,
         num_layers=12,
@@ -159,6 +163,7 @@ def sparse_token_batch_vit_b_16(*, ps_model: SSPOR | SSPOC, fit_type: str, sensi
         sensing_patch_size=sensing_patch_size,
         tokens=tokens,
         random_tokens=random_tokens,
+        strategy=strategy,
         weights=weights,
         progress=progress,
         **kwargs,

@@ -32,6 +32,7 @@ parser.add_argument("--sensors", "-s", default=1, type=int, help="Number of sens
 parser.add_argument("--patch", "-p", default=4, type=int, help="Size of the token patches to be selected at native resolution.")
 parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
 parser.add_argument("--random-tokens", default=0, type=int, help="Number of random tokens to be selected.")
+parser.add_argument("--strategy", choices=["frequency", "ranking"], default="frequency", help="Determines the strategy used to gather tokens for the mask.")
 parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
 parser.add_argument(
     "-b", "--batch-size", default=32, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
