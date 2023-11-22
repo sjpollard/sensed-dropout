@@ -251,8 +251,8 @@ def main(args):
                                       dropout=args.dropout, attention_dropout=args.attention_dropout)
     elif args.model == 'sparse_token_batch_vit_b_16':
         ps_model = tokens.get_model(args.fit_type, args.basis, args.modes, args.sensors, 0.001)
-        model = sparse_token_batch_vit_b_16(image_size=128, ps_model=ps_model, fit_type=args.fit_type, patch=args.patch,
-                                            tokens=args.tokens, random_tokens=args.random_tokens, weights=args.weights,
+        model = sparse_token_batch_vit_b_16(image_size=128, ps_model=ps_model, fit_type=args.fit_type, sensing_patch_size=args.patch,
+                                            tokens=args.tokens, random_tokens=args.random_tokens, strategy=args.strategy, weights=args.weights,
                                             num_classes=num_classes, dropout=args.dropout, attention_dropout=args.attention_dropout)
     model.to(device)
 
