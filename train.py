@@ -125,7 +125,6 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
         if args.model == 'sparse_token_batch_vit_b_16': 
             if args.distributed: model.module.update_mask(image, target)
             else: model.update_mask(image, target)
-        print(time.time() - start_time)
         image = torchvision.transforms.functional.resize(image, size=(128, 128), antialias=False)
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
