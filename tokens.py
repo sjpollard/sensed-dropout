@@ -160,7 +160,7 @@ def benchmark(args):
     df.to_csv(f'out/{filename}.csv', index=False)
 
 def generate_tokens(args):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=True, download=args.download, greyscale=False)
+    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, download=args.download, greyscale=False)
     batch = next(iter(dataloader))
     X_train, y_train = batch[0], batch[1]
 
@@ -231,16 +231,24 @@ def mask_from_sensors(selected_sensors: list[int], patch: int, h: int, w: int, k
     mask_h, mask_w = patched_sensors.shape[:2]
     token_mask = np.zeros((mask_h * mask_w), dtype=bool)
 
+    diff = 0
     if strategy == 'frequency':
         patch_sums = np.sum(patched_sensors, axis=(2,3))
-        token_indices = np.argsort(patch_sums.ravel())[:-k-1:-1]
+        diff = int(k - np.sum(patch_sums))
+        non_zero_indices = np.nonzero(patch_sums.ravel())[0]
+        token_indices = non_zero_indices[np.argsort(patch_sums.ravel()[non_zero_indices])][:-k-1:-1]
     elif strategy == 'ranking':
         y_indices = selected_sensors // (patch * w)
         x_indices = ((selected_sensors % (patch * w)) % w) // patch
         patch_indices = y_indices * mask_w + x_indices
-        token_indices = pd.unique(patch_indices)[:k]
-
+        unique_indices = pd.unique(patch_indices)
+        diff = k - len(unique_indices)
+        token_indices = unique_indices[:k]
     token_mask[token_indices] = True
+    if diff > 0:
+            zeros = np.argwhere(token_mask == 0).squeeze()
+            new_ones = zeros[np.random.permutation(len(zeros))][:diff]
+            token_mask[new_ones] = True
     token_mask = token_mask.reshape((mask_h, mask_w))
     return torch.from_numpy(token_mask)
 
