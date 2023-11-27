@@ -210,8 +210,8 @@ def get_model(fit_type: str, basis: str, modes: int, sensors: int, l1_penalty: f
 def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: torch.Tensor, patch: int, tokens: int, strategy: str):
     n, c, h, w = x.size()
 
-    if fit_type == 'r': model.fit(process_tensor(x))
-    elif fit_type == 'c': model.fit(process_tensor(x), y.numpy())
+    if fit_type == 'r': model.fit(process_tensor(x), quiet=True)
+    elif fit_type == 'c': model.fit(process_tensor(x), y.numpy(), quiet=True)
 
     return mask_from_sensors(model.selected_sensors, patch, h, w, tokens, strategy)
 
