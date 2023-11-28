@@ -3,6 +3,7 @@ import time
 import torch
 import torchvision
 from torchvision.models.vision_transformer import VisionTransformer
+from torchvision.models.vision_transformer import Encoder
 import torch.nn as nn
 
 from functools import partial
@@ -58,9 +59,8 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         self.tokens = tokens
         self.random_tokens = random_tokens
         self.strategy = strategy
-        self.seq_length = tokens + random_tokens + 1
 
-        self.encoder = torchvision.models.vision_transformer.Encoder(
+        self.encoder = SparseTokenBatchEncoder(
             self.seq_length,
             num_layers,
             num_heads,
@@ -113,6 +113,52 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         x = x.permute(0, 2, 1)
         
         return x
+    
+    def forward(self, x: torch.Tensor):
+        # Reshape and permute the input tensor
+        x = self._process_input(x)
+        n = x.shape[0]
+
+        # Expand the class token to the full batch
+        batch_class_token = self.class_token.expand(n, -1, -1)
+        x = torch.cat([batch_class_token, x], dim=1)
+
+        x = self.encoder(x, self.token_mask)
+
+        # Classifier "token" as used by standard language architectures
+        x = x[:, 0]
+
+        x = self.heads(x)
+
+        return x
+
+class SparseTokenBatchEncoder(Encoder):
+    """Transformer Model Encoder for sequence to sequence translation."""
+
+    def __init__(
+        self,
+        seq_length: int,
+        num_layers: int,
+        num_heads: int,
+        hidden_dim: int,
+        mlp_dim: int,
+        dropout: float,
+        attention_dropout: float,
+        norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+    ):
+        super().__init__(seq_length,
+                         num_layers,
+                         num_heads,
+                         hidden_dim,
+                         mlp_dim,
+                         dropout,
+                         attention_dropout,
+                         norm_layer)
+
+    def forward(self, input: torch.Tensor, token_mask):
+        torch._assert(input.dim() == 3, f"Expected (batch_size, seq_length, hidden_dim) got {input.shape}")
+        input = input + self.pos_embedding[:, torch.cat((torch.tensor([True]), token_mask.ravel())), :]
+        return self.ln(self.layers(self.dropout(input)))
 
 def _sparse_token_batch_vision_transformer(
     patch_size: int,
