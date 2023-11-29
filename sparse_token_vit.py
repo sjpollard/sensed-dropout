@@ -65,7 +65,7 @@ class SparseTokenVisionTransformer(VisionTransformer):
         # (n, hidden_dim, n_h, n_w) -> (n, hidden_dim, (n_h * n_w))
         x = x.reshape(n, self.hidden_dim, n_h * n_w)
 
-        x = x[:, :, self.token_mask.flatten()]
+        x = x[:, :, self.token_mask]
 
         # (n, hidden_dim, (n_h * n_w)) -> (n, (n_h * n_w), hidden_dim)
         # The self attention layer expects inputs in the format (N, S, E)

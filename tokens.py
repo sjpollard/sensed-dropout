@@ -169,6 +169,8 @@ def generate_tokens(args):
     X_test, y_test = batch[0], batch[1]
 
     n, c, h, w = X_train.size()
+
+    mask_dim = (h // args.patch, w // args.patch)
     
     model = get_model(args.fit_type, args.basis, args.modes, args.sensors, args.l1_penalty)
 
@@ -176,7 +178,7 @@ def generate_tokens(args):
 
     if args.show_basis: show_basis(model, h, w)
     if args.show_sensors: show_sensors(model, h, w)
-    if args.show_tokens: show_tokens(token_mask)
+    if args.show_tokens: show_tokens(token_mask, mask_dim)
 
     if args.score:
         if args.fit_type == 'r':
@@ -190,7 +192,7 @@ def generate_tokens(args):
     
     if args.output:
         filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}_{args.strategy}'
-        save_output(filename, model, h, w, token_mask)
+        save_output(filename, model, h, w, token_mask, mask_dim)
 
 def get_basis(basis: str, n_basis_modes: int):
     if basis == 'SVD':
@@ -249,7 +251,6 @@ def mask_from_sensors(selected_sensors: list[int], patch: int, h: int, w: int, k
             zeros = np.argwhere(token_mask == 0).squeeze()
             new_ones = zeros[np.random.permutation(len(zeros))][:diff]
             token_mask[new_ones] = True
-    token_mask = token_mask.reshape((mask_h, mask_w))
     return torch.from_numpy(token_mask)
 
 def show_basis(model: SSPOR | SSPOC, h: int, w: int, n_modes: int = 100):
@@ -263,15 +264,15 @@ def show_sensors(model: SSPOR | SSPOC, h: int, w: int):
     np.put(sensors, model.get_selected_sensors(), values)
     ts.show(sensors.reshape((h, w)), mode='grayscale')
 
-def show_tokens(token_mask: np.ndarray):
-    ts.show(token_mask, mode='grayscale')
+def show_tokens(token_mask: torch.Tensor, mask_dim: tuple):
+    ts.show(token_mask.reshape(mask_dim), mode='grayscale')
 
 def random_mask(h: int, w: int, k: int):
     n = h * w
     token_mask = torch.reshape(torch.repeat_interleave(torch.tensor([False, True]), torch.tensor([n-k, k]))[torch.randperm(n)], (h, w))
     return token_mask
 
-def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: torch.Tensor):
+def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: torch.Tensor, mask_dim: tuple):
     output_modes = 100
     if not os.path.exists('token_masks'):
             os.makedirs('token_masks')
@@ -285,7 +286,7 @@ def save_output(filename, model : SSPOR | SSPOC, h: int, w: int, token_mask: tor
     np.put(sensors, model.get_selected_sensors(), values)
     ts.save(sensors.reshape((h, w)), f'token_masks/{filename}/sensors_{filename}.jpg', mode='grayscale')
 
-    ts.save(token_mask, f'token_masks/{filename}/tokens_{filename}.jpg', mode='grayscale')
+    ts.save(token_mask.reshape(mask_dim), f'token_masks/{filename}/tokens_{filename}.jpg', mode='grayscale')
 
     torch.save(token_mask, f'token_masks/{filename}/token_mask_{filename}.pt')
 
