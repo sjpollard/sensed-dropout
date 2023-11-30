@@ -9,7 +9,7 @@ import torch.utils.data
 import torchvision
 import torchvision.transforms
 import utils
-from torch import dropout, nn
+from torch import nn
 
 import wandb
 
@@ -33,6 +33,7 @@ parser.add_argument("--patch", "-p", default=4, type=int, help="Size of the toke
 parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
 parser.add_argument("--random-tokens", default=0, type=int, help="Number of random tokens to be selected.")
 parser.add_argument("--strategy", choices=["frequency", "ranking"], default="frequency", help="Determines the strategy used to gather tokens for the mask.")
+parser.add_argument("--inference-strategy", choices=["heatmap", "oracle"], default="oracle", help="Determines the strategy used at inference time.")
 parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
 parser.add_argument(
     "-b", "--batch-size", default=32, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -252,8 +253,9 @@ def main(args):
     elif args.model == 'sparse_token_batch_vit_b_16':
         ps_model = tokens.get_model(args.fit_type, args.basis, args.modes, args.sensors, 0.001)
         model = sparse_token_batch_vit_b_16(image_size=128, ps_model=ps_model, fit_type=args.fit_type, sensing_patch_size=args.patch,
-                                            tokens=args.tokens, random_tokens=args.random_tokens, strategy=args.strategy, weights=args.weights,
-                                            num_classes=num_classes, dropout=args.dropout, attention_dropout=args.attention_dropout)
+                                            tokens=args.tokens, random_tokens=args.random_tokens, strategy=args.strategy,
+                                            inference_strategy=args.inference_strategy, weights=args.weights, num_classes=num_classes,
+                                            dropout=args.dropout, attention_dropout=args.attention_dropout)
     model.to(device)
 
     if args.distributed and args.sync_bn:

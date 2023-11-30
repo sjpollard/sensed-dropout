@@ -80,6 +80,13 @@ torchrun --nproc_per_node=2 train.py\
     --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
     --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
 
+# batch_t_c_b_Identity_m_128_s_128_p_4_k_24_24_ranking
+torchrun --nproc_per_node=2 train.py\
+    --model sparse_token_batch_vit_b_16 --fit-type 'c' --basis Identity --modes 128 --sensors 128 --patch 4\
+    --tokens 24 --random-tokens 24 --strategy ranking --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
 # batch_t_c_b_Identity_m_128_s_128_p_4_k_16_16_ranking
 torchrun --nproc_per_node=2 train.py\
     --model sparse_token_batch_vit_b_16 --fit-type 'c' --basis Identity --modes 128 --sensors 128 --patch 4\
@@ -105,6 +112,13 @@ torchrun --nproc_per_node=2 train.py\
 torchrun --nproc_per_node=2 train.py\
     --model sparse_token_batch_vit_b_16 --fit-type 'c' --basis Identity --modes 128 --sensors 128 --patch 4\
     --tokens 2 --random-tokens 30 --strategy ranking --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+# batch_t_c_b_Identity_m_128_s_128_p_4_k_30_2_ranking
+torchrun --nproc_per_node=2 train.py\
+    --model sparse_token_batch_vit_b_16 --fit-type 'c' --basis Identity --modes 128 --sensors 128 --patch 4\
+    --tokens 30 --random-tokens 2 --strategy ranking --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
     --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
     --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
 

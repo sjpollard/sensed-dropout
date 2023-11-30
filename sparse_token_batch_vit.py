@@ -1,5 +1,3 @@
-import time
-
 import torch
 import torchvision
 from torchvision.models.vision_transformer import VisionTransformer
@@ -29,6 +27,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         tokens: int,
         random_tokens: int,
         strategy: str,
+        inference_strategy: str,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
         num_classes: int = 1000,
@@ -59,6 +58,7 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
         self.tokens = tokens
         self.random_tokens = random_tokens
         self.strategy = strategy
+        self.inference_strategy = inference_strategy
 
         self.encoder = SparseTokenBatchEncoder(
             self.seq_length,
@@ -83,13 +83,17 @@ class SparseTokenBatchVisionTransformer(VisionTransformer):
 
     def update_inference_mask(self):
         self.token_mask = torch.zeros(self.mask_length, dtype=bool)
-        if self.tokens != 0:
-            new_ones = torch.argsort(self.heatmap, descending=True)[:self.tokens]
-            self.token_mask[new_ones] = True
-        if self.random_tokens != 0:
-            zeros = (self.token_mask == 0).argwhere().squeeze()
-            new_ones = zeros[torch.randperm(len(zeros))][:self.random_tokens]
-            self.token_mask[new_ones] = True
+
+        if self.inference_strategy =='heatmap':
+            if self.tokens != 0:
+                new_ones = torch.argsort(self.heatmap, descending=True)[:self.tokens]
+                self.token_mask[new_ones] = True
+            if self.random_tokens != 0:
+                zeros = (self.token_mask == 0).argwhere().squeeze()
+                new_ones = zeros[torch.randperm(len(zeros))][:self.random_tokens]
+                self.token_mask[new_ones] = True
+        elif self.inference_strategy == 'oracle':
+            self.token_mask[:] = True
 
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
         n, c, h, w = x.shape
@@ -172,6 +176,7 @@ def _sparse_token_batch_vision_transformer(
     tokens: int,
     random_tokens: int,
     strategy: str,
+    inference_strategy:str,
     weights,
     progress: bool,
     **kwargs: Any,
@@ -191,13 +196,14 @@ def _sparse_token_batch_vision_transformer(
         tokens=tokens,
         random_tokens=random_tokens,
         strategy=strategy,
+        inference_strategy=inference_strategy,
         **kwargs,
     )
 
     return model
 
 def sparse_token_batch_vit_b_16(*, ps_model: SSPOR | SSPOC, fit_type: str, sensing_patch_size: int, tokens: int, random_tokens: int,
-                                strategy: str, weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenBatchVisionTransformer:
+                                strategy: str, inference_strategy: str, weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenBatchVisionTransformer:
     return _sparse_token_batch_vision_transformer(
         patch_size=16,
         num_layers=12,
@@ -210,6 +216,7 @@ def sparse_token_batch_vit_b_16(*, ps_model: SSPOR | SSPOC, fit_type: str, sensi
         tokens=tokens,
         random_tokens=random_tokens,
         strategy=strategy,
+        inference_strategy=inference_strategy,
         weights=weights,
         progress=progress,
         **kwargs,
