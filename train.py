@@ -18,6 +18,7 @@ import tokens
 
 from sparse_token_vit import sparse_token_vit_b_16
 from sparse_token_batch_vit import sparse_token_batch_vit_b_16
+from sparse_token_vit2 import sparse_token_vit2_b_16
 
 parser = argparse.ArgumentParser(
     description="ViT training with PyTorch",
@@ -243,7 +244,7 @@ def main(args):
     num_classes = len(train_dataloader.dataset.classes)
 
     print("Creating model")
-    if args.model not in ['sparse_token_vit_b_16', 'sparse_token_batch_vit_b_16']:
+    if args.model not in ['sparse_token_vit_b_16', 'sparse_token_batch_vit_b_16', 'sparse_token_vit2_b_16']:
         model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes, 
                                              dropout=args.dropout, attention_dropout=args.attention_dropout)
     elif args.model == 'sparse_token_vit_b_16':
@@ -255,6 +256,9 @@ def main(args):
         model = sparse_token_batch_vit_b_16(image_size=128, ps_model=ps_model, fit_type=args.fit_type, sensing_patch_size=args.patch,
                                             tokens=args.tokens, random_tokens=args.random_tokens, strategy=args.strategy,
                                             inference_strategy=args.inference_strategy, weights=args.weights, num_classes=num_classes,
+                                            dropout=args.dropout, attention_dropout=args.attention_dropout)
+    elif args.model == 'sparse_token_vit2_b_16':
+        model = sparse_token_vit2_b_16(image_size=128, weights=args.weights, num_classes=num_classes,
                                             dropout=args.dropout, attention_dropout=args.attention_dropout)
     model.to(device)
 
