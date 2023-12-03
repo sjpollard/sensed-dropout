@@ -10,6 +10,7 @@ from typing import Any, Optional, List, Callable
 
 from pysensors import SSPOC, SSPOR
 from patchdropout import PatchDropout
+from sensordropout import SensorDropout
 
 import tokens
 
@@ -45,9 +46,9 @@ class SparseTokenVisionTransformer2(VisionTransformer):
         )
         
         self.pos_embedding = nn.Parameter(torch.empty(1, self.seq_length, hidden_dim).normal_(std=0.02))  # from BERT
-        self.patch_dropout = PatchDropout(0.5)
+        #self.patch_dropout = PatchDropout(0.5)
+        self.patch_dropout = SensorDropout(8, 'r', 'oracle', 'Identity', 128, 128, 0.001, 4, 'ranking')
         self.encoder = SparseTokenEncoder(
-            self.seq_length,
             num_layers,
             num_heads,
             self.hidden_dim,
@@ -84,7 +85,6 @@ class SparseTokenEncoder(nn.Module):
 
     def __init__(
         self,
-        seq_length: int,
         num_layers: int,
         num_heads: int,
         hidden_dim: int,

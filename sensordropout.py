@@ -1,15 +1,30 @@
 import torch
 
-class PatchDropout(torch.nn.Module):
-    """ 
-    Implements PatchDropout: https://arxiv.org/abs/2208.07220
-    """
-    def __init__(self, keep_rate=0.5, sampling="uniform", token_shuffling=False):
+import tokens
+
+class SensorDropout(torch.nn.Module):
+    def __init__(self,
+                 tokens,
+                 train_sampling='r', 
+                 inference_sampling='oracle', 
+                 basis='Identity',
+                 modes='128',
+                 sensors='128',
+                 l1_penalty=0.001,
+                 patch=4,
+                 strategy='ranking',
+                 token_shuffling=False):
         super().__init__()
-        assert 0 < keep_rate <=1, "The keep_rate must be in (0,1]"
         
-        self.keep_rate = keep_rate
-        self.sampling = sampling
+        self.tokens = tokens
+        self.train_sampling = train_sampling
+        self.inference_sampling = inference_sampling
+        self.basis = basis
+        self.modes = modes
+        self.sensors = sensors
+        self.l1_penalty = l1_penalty
+        self.patch = patch
+        self.strategy = strategy
         self.token_shuffling = token_shuffling
 
     def forward(self, x, force_drop=False):
@@ -35,8 +50,20 @@ class PatchDropout(torch.nn.Module):
 
         return x
     
+    def update_mask(self, x, y):
+        sampling = None
+        if self.training and self.train_sampling in ['r', 'c']:
+            sampling = self.train_sampling
+        elif not self.training and self.inference_sampling in ['r']:
+            sampling = self.inference_sampling
+        if sampling != None:
+            model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=self.modes, 
+                                     sensors=self.sensors, l1_penalty=self.l1_penalty)
+            print(tokens.fit_mask(model, sampling, x, y, self.patch, self.tokens, self.strategy))
+        return
+
     def get_mask(self, x):
-        if self.sampling == "uniform":
+        if self.sampling == 'uniform':
             return self.uniform_mask(x)
         else:
             return NotImplementedError(f"PatchDropout does not support {self.sampling} sampling")

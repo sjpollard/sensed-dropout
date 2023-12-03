@@ -125,9 +125,14 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
     for i, (image, target) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
         if args.model == 'sparse_token_batch_vit_b_16': 
-            if args.distributed: model.module.update_mask(image, target)
-            else: model.update_mask(image, target)
-        image = torchvision.transforms.functional.resize(image, size=(128, 128), antialias=False)
+            downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
+            if args.distributed: model.module.update_mask(downscaled_image, target)
+            else: model.update_mask(downscaled_image, target)
+        if args.model == 'sparse_token_vit2_b_16': 
+            downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
+            print('hi')
+            if args.distributed: model.module.patch_dropout.update_mask(downscaled_image, target)
+            else: model.patch_dropout.update_mask(downscaled_image, target)
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
@@ -171,7 +176,6 @@ def evaluate(model, criterion, data_loader, device, args, print_freq=100, log_su
             if args.model == 'sparse_token_batch_vit_b_16': 
                 if args.distributed: model.module.update_inference_mask()
                 else: model.update_inference_mask()
-            image = torchvision.transforms.functional.resize(image, size=(128, 128), antialias=False)
             image = image.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
             output = model(image)
@@ -238,8 +242,8 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    train_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, num_workers=args.workers, distributed=args.distributed)
-    test_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, num_workers=args.workers, distributed=args.distributed)
+    train_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, image_size=128, num_workers=args.workers, distributed=args.distributed)
+    test_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, image_size=128, train=False, num_workers=args.workers, distributed=args.distributed)
 
     num_classes = len(train_dataloader.dataset.classes)
 
