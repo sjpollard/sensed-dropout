@@ -8,13 +8,9 @@ from collections import OrderedDict
 from functools import partial
 from typing import Any, Optional, List, Callable
 
-from pysensors import SSPOC, SSPOR
-from patchdropout import PatchDropout
 from sensed_patch_dropout import SensedPatchDropout
 
-import tokens
-
-class SparseTokenVisionTransformer2(VisionTransformer):
+class SensedDropoutVisionTransformer(VisionTransformer):
 
     def __init__(
         self,
@@ -24,6 +20,12 @@ class SparseTokenVisionTransformer2(VisionTransformer):
         num_heads: int,
         hidden_dim: int,
         mlp_dim: int,
+        tokens: int,
+        train_sampling: int,
+        inference_sampling: int,
+        basis: str,
+        sensors: int,
+        sensing_patch_size: int,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
         num_classes: int = 1000,
@@ -36,7 +38,7 @@ class SparseTokenVisionTransformer2(VisionTransformer):
                          num_layers, 
                          num_heads, 
                          hidden_dim, 
-                         mlp_dim, 
+                         mlp_dim,
                          dropout, 
                          attention_dropout, 
                          num_classes, 
@@ -46,8 +48,17 @@ class SparseTokenVisionTransformer2(VisionTransformer):
         )
         
         self.pos_embedding = nn.Parameter(torch.empty(1, self.seq_length, hidden_dim).normal_(std=0.02))  # from BERT
-        self.patch_dropout = SensedPatchDropout(tokens=8, train_sampling='c', inference_sampling='oracle')
-        self.encoder = SparseTokenEncoder(
+
+        self.patch_dropout = SensedPatchDropout(
+            tokens=tokens, 
+            train_sampling=train_sampling, 
+            inference_sampling=inference_sampling,
+            basis=basis,
+            sensors=sensors, 
+            sensing_patch_size=sensing_patch_size
+        )
+
+        self.encoder = SensedDropoutEncoder(
             num_layers,
             num_heads,
             self.hidden_dim,
@@ -70,8 +81,6 @@ class SparseTokenVisionTransformer2(VisionTransformer):
 
         x = self.patch_dropout(x)
 
-        print(x.size())
-
         x = self.encoder(x)
 
         # Classifier "token" as used by standard language architectures
@@ -81,7 +90,7 @@ class SparseTokenVisionTransformer2(VisionTransformer):
 
         return x
 
-class SparseTokenEncoder(nn.Module):
+class SensedDropoutEncoder(nn.Module):
     """Transformer Model Encoder for sequence to sequence translation."""
 
     def __init__(
@@ -115,37 +124,56 @@ class SparseTokenEncoder(nn.Module):
         torch._assert(input.dim() == 3, f"Expected (batch_size, seq_length, hidden_dim) got {input.shape}")
         return self.ln(self.layers(self.dropout(input)))
 
-def _sparse_token_vision_transformer2(
+def _sensed_dropout_vision_transformer(
     patch_size: int,
     num_layers: int,
     num_heads: int,
     hidden_dim: int,
     mlp_dim: int,
+    tokens: int,
+    train_sampling: int,
+    inference_sampling: int,
+    basis: str,
+    sensors: int,
+    sensing_patch_size: int,
     weights,
     progress: bool,
     **kwargs: Any,
-) -> SparseTokenVisionTransformer2:
+) -> SensedDropoutVisionTransformer:
     image_size = kwargs.pop("image_size", 224)
 
-    model = SparseTokenVisionTransformer2(
+    model = SensedDropoutVisionTransformer(
         image_size=image_size,
         patch_size=patch_size,
         num_layers=num_layers,
         num_heads=num_heads,
         hidden_dim=hidden_dim,
         mlp_dim=mlp_dim,
+        tokens=tokens,
+        train_sampling=train_sampling,
+        inference_sampling=inference_sampling,
+        basis=basis,
+        sensors=sensors,
+        sensing_patch_size=sensing_patch_size,
         **kwargs,
     )
 
     return model
 
-def sparse_token_vit2_b_16(*, weights = None, progress: bool = True, **kwargs: Any) -> SparseTokenVisionTransformer2:
-    return _sparse_token_vision_transformer2(
+def sensed_dropout_vit_b_16(*, tokens, train_sampling, inference_sampling, basis, sensors, sensing_patch_size, 
+                           weights = None, progress: bool = True, **kwargs: Any) -> SensedDropoutVisionTransformer:
+    return _sensed_dropout_vision_transformer(
         patch_size=16,
         num_layers=12,
         num_heads=12,
         hidden_dim=768,
         mlp_dim=3072,
+        tokens=tokens,
+        train_sampling=train_sampling,
+        inference_sampling=inference_sampling,
+        basis=basis,
+        sensors=sensors,
+        sensing_patch_size=sensing_patch_size,
         weights=weights,
         progress=progress,
         **kwargs,

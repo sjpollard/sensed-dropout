@@ -14,27 +14,21 @@ from torch import nn
 import wandb
 
 import data
-import tokens
 
-from sparse_token_vit import sparse_token_vit_b_16
-from sparse_token_batch_vit import sparse_token_batch_vit_b_16
-from sparse_token_vit2 import sparse_token_vit2_b_16
+from sensed_dropout_vit import sensed_dropout_vit_b_16
 
 parser = argparse.ArgumentParser(
     description="ViT training with PyTorch",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--model", default="resnet18", type=str, help="model name")
-parser.add_argument("--token-mask", default='', type=str, help="Name of the saved token mask to train with.")
-parser.add_argument("--fit-type", default="r", choices=["r", "c"], help="Determines whether pysensors uses SSPOR or SSPOC.")
+parser.add_argument("--train-sampling", default="oracle", choices=["oracle", "random", "r", "c"], help="Determines whether pysensors uses SSPOR or SSPOC.")
+parser.add_argument("--inference-sampling", default="oracle", choices=["oracle", "random", "r"], help="Determines whether pysensors uses SSPOR or SSPOC.")
 parser.add_argument("--basis", default="Identity", choices=["Identity", "SVD", "RandomProjection"], help="Determines the basis represent images in.")
-parser.add_argument("--modes", default=1, type=int, help="Number of modes to select when preparing the basis.")
-parser.add_argument("--sensors", "-s", default=1, type=int, help="Number of sensors to select from the original features.")
-parser.add_argument("--patch", "-p", default=4, type=int, help="Size of the token patches to be selected at native resolution.")
+parser.add_argument("--sensors", "-s", default=128, type=int, help="Number of sensors to select from the original features.")
+parser.add_argument("--sensing-patch-size", "-p", default=4, type=int, help="Size of the token patches to be selected at native resolution.")
 parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
 parser.add_argument("--random-tokens", default=0, type=int, help="Number of random tokens to be selected.")
-parser.add_argument("--strategy", choices=["frequency", "ranking"], default="frequency", help="Determines the strategy used to gather tokens for the mask.")
-parser.add_argument("--inference-strategy", choices=["heatmap", "oracle"], default="oracle", help="Determines the strategy used at inference time.")
 parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
 parser.add_argument(
     "-b", "--batch-size", default=32, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -128,7 +122,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
             downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
             if args.distributed: model.module.update_mask(downscaled_image, target)
             else: model.update_mask(downscaled_image, target)
-        if args.model == 'sparse_token_vit2_b_16': 
+        if args.model == 'sensed_dropout_vit_b_16': 
             downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
             if args.distributed: model.module.patch_dropout.update_sensing_mask(downscaled_image, target)
             else: model.patch_dropout.update_sensing_mask(downscaled_image, target)
@@ -247,22 +241,14 @@ def main(args):
     num_classes = len(train_dataloader.dataset.classes)
 
     print("Creating model")
-    if args.model not in ['sparse_token_vit_b_16', 'sparse_token_batch_vit_b_16', 'sparse_token_vit2_b_16']:
+    if args.model not in ['sensed_dropout_vit_b_16']:
         model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes, 
                                              dropout=args.dropout, attention_dropout=args.attention_dropout)
-    elif args.model == 'sparse_token_vit_b_16':
-        token_mask = torch.load(f'token_masks/{args.token_mask}/token_mask_{args.token_mask}.pt')
-        model = sparse_token_vit_b_16(image_size=128, token_mask=token_mask, weights=args.weights, num_classes=num_classes,
-                                      dropout=args.dropout, attention_dropout=args.attention_dropout)
-    elif args.model == 'sparse_token_batch_vit_b_16':
-        ps_model = tokens.get_model(args.fit_type, args.basis, args.modes, args.sensors, 0.001)
-        model = sparse_token_batch_vit_b_16(image_size=128, ps_model=ps_model, fit_type=args.fit_type, sensing_patch_size=args.patch,
-                                            tokens=args.tokens, random_tokens=args.random_tokens, strategy=args.strategy,
-                                            inference_strategy=args.inference_strategy, weights=args.weights, num_classes=num_classes,
-                                            dropout=args.dropout, attention_dropout=args.attention_dropout)
-    elif args.model == 'sparse_token_vit2_b_16':
-        model = sparse_token_vit2_b_16(image_size=128, weights=args.weights, num_classes=num_classes,
-                                            dropout=args.dropout, attention_dropout=args.attention_dropout)
+    elif args.model == 'sensed_dropout_vit_b_16':
+        model = sensed_dropout_vit_b_16(image_size=128, tokens=args.tokens, train_sampling=args.train_sampling, 
+                                        inference_sampling=args.inference_sampling, basis=args.basis, sensors=args.sensors,
+                                        sensing_patch_size=args.sensing_patch_size, weights=args.weights, num_classes=num_classes, 
+                                        dropout=args.dropout, attention_dropout=args.attention_dropout)
     model.to(device)
 
     if args.distributed and args.sync_bn:

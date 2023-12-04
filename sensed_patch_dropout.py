@@ -5,8 +5,10 @@ import tokens
 class SensedPatchDropout(torch.nn.Module):
     def __init__(self,
                  tokens,
-                 train_sampling='r', 
+                 train_sampling='oracle', 
                  inference_sampling='oracle',
+                 basis='Identity',
+                 sensors='128',
                  sensing_patch_size=4, 
                  token_shuffling=False):
         super().__init__()
@@ -14,10 +16,10 @@ class SensedPatchDropout(torch.nn.Module):
         self.tokens = tokens
         self.train_sampling = train_sampling
         self.inference_sampling = inference_sampling
-        self.basis = 'Identity'
-        self.sensors = 128
-        self.l1_penalty = 0.001
+        self.basis = basis
+        self.sensors = sensors
         self.sensing_patch_size = sensing_patch_size
+        self.l1_penalty = 0.001
         self.strategy = 'ranking'
         self.token_shuffling = token_shuffling
 
@@ -50,14 +52,14 @@ class SensedPatchDropout(torch.nn.Module):
 
     def get_mask(self, x):
         sampling = self.train_sampling if self.training else self.inference_sampling
-        if sampling == 'uniform':
-            return self.uniform_mask(x)
+        if sampling == 'random':
+            return self.random_mask(x)
         elif sampling in ['r', 'c']:
             return self.sensed_mask(x)
         else:
             return NotImplementedError(f"PatchDropout does not support {sampling} sampling")
     
-    def uniform_mask(self, x):
+    def random_mask(self, x):
         """
         Returns an iid-mask using uniform sampling
         """
