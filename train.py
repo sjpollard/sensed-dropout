@@ -130,9 +130,8 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
             else: model.update_mask(downscaled_image, target)
         if args.model == 'sparse_token_vit2_b_16': 
             downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
-            print('hi')
-            if args.distributed: model.module.patch_dropout.update_mask(downscaled_image, target)
-            else: model.patch_dropout.update_mask(downscaled_image, target)
+            if args.distributed: model.module.patch_dropout.update_sensing_mask(downscaled_image, target)
+            else: model.patch_dropout.update_sensing_mask(downscaled_image, target)
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
