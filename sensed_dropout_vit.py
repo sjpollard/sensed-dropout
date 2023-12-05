@@ -21,6 +21,7 @@ class SensedDropoutVisionTransformer(VisionTransformer):
         hidden_dim: int,
         mlp_dim: int,
         tokens: int,
+        ratio: int,
         train_sampling: int,
         inference_sampling: int,
         basis: str,
@@ -50,7 +51,8 @@ class SensedDropoutVisionTransformer(VisionTransformer):
         self.pos_embedding = nn.Parameter(torch.empty(1, self.seq_length, hidden_dim).normal_(std=0.02))  # from BERT
 
         self.patch_dropout = SensedPatchDropout(
-            tokens=tokens, 
+            tokens=tokens,
+            ratio=ratio,
             train_sampling=train_sampling, 
             inference_sampling=inference_sampling,
             basis=basis,
@@ -131,6 +133,7 @@ def _sensed_dropout_vision_transformer(
     hidden_dim: int,
     mlp_dim: int,
     tokens: int,
+    ratio: int,
     train_sampling: int,
     inference_sampling: int,
     basis: str,
@@ -150,6 +153,7 @@ def _sensed_dropout_vision_transformer(
         hidden_dim=hidden_dim,
         mlp_dim=mlp_dim,
         tokens=tokens,
+        ratio=ratio,
         train_sampling=train_sampling,
         inference_sampling=inference_sampling,
         basis=basis,
@@ -160,7 +164,7 @@ def _sensed_dropout_vision_transformer(
 
     return model
 
-def sensed_dropout_vit_b_16(*, tokens, train_sampling, inference_sampling, basis, sensors, sensing_patch_size, 
+def sensed_dropout_vit_b_16(*, tokens, ratio, train_sampling, inference_sampling, basis, sensors, sensing_patch_size, 
                            weights = None, progress: bool = True, **kwargs: Any) -> SensedDropoutVisionTransformer:
     return _sensed_dropout_vision_transformer(
         patch_size=16,
@@ -169,6 +173,7 @@ def sensed_dropout_vit_b_16(*, tokens, train_sampling, inference_sampling, basis
         hidden_dim=768,
         mlp_dim=3072,
         tokens=tokens,
+        ratio=ratio,
         train_sampling=train_sampling,
         inference_sampling=inference_sampling,
         basis=basis,

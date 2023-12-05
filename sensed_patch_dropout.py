@@ -5,6 +5,7 @@ import tokens
 class SensedPatchDropout(torch.nn.Module):
     def __init__(self,
                  tokens,
+                 ratio,
                  train_sampling='oracle', 
                  inference_sampling='oracle',
                  basis='Identity',
@@ -14,6 +15,7 @@ class SensedPatchDropout(torch.nn.Module):
         super().__init__()
         
         self.tokens = tokens
+        self.ratio = ratio
         self.train_sampling = train_sampling
         self.inference_sampling = inference_sampling
         self.basis = basis
@@ -47,7 +49,7 @@ class SensedPatchDropout(torch.nn.Module):
         if sampling in ['r', 'c']:
             model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=x.size(0), 
                                      sensors=self.sensors, l1_penalty=self.l1_penalty)
-            self.token_mask = tokens.fit_mask(model, sampling, x, y, self.sensing_patch_size, self.tokens, self.strategy)
+            self.token_mask = tokens.fit_mask(model, sampling, x, y, self.sensing_patch_size, int(self.ratio * self.tokens), self.strategy)
         return
 
     def get_mask(self, x):
@@ -57,7 +59,7 @@ class SensedPatchDropout(torch.nn.Module):
         elif sampling in ['r', 'c']:
             return self.sensed_mask(x)
         else:
-            return NotImplementedError(f"PatchDropout does not support {sampling} sampling")
+            return NotImplementedError(f"SensedPatchDropout does not support {sampling} sampling")
     
     def random_mask(self, x):
         """
@@ -76,8 +78,16 @@ class SensedPatchDropout(torch.nn.Module):
     def sensed_mask(self, x):
         N, L, D = x.shape
         _L = L -1 # patch length (without CLS)
-        
-        patch_mask = (self.token_mask.argwhere().squeeze() + 1).expand(N, -1).to(x.device)
+
+        random_tokens = int((1 - self.ratio) * self.tokens)
+
+        sensed_mask = self.token_mask.argwhere().squeeze()
+
+        zeros = (self.token_mask == 0).argwhere().squeeze()
+        shuffled_zeros = torch.rand(N, len(zeros))
+        sorted_zeros = torch.argsort(shuffled_zeros, dim=1)
+        random_mask = zeros[sorted_zeros][:, :random_tokens]
+        patch_mask = (torch.cat((random_mask, sensed_mask.expand(N, -1)), dim=1) + 1).to(x.device)
 
         if not self.token_shuffling:
             patch_mask = patch_mask.sort(1)[0]

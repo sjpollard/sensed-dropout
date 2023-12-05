@@ -22,13 +22,13 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--model", default="resnet18", type=str, help="model name")
+parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
+parser.add_argument("--ratio", default=0.5, type=float, help="Ratio of sensed tokens to be used with sensed dropout.")
 parser.add_argument("--train-sampling", default="oracle", choices=["oracle", "random", "r", "c"], help="Determines whether pysensors uses SSPOR or SSPOC.")
 parser.add_argument("--inference-sampling", default="oracle", choices=["oracle", "random", "r"], help="Determines whether pysensors uses SSPOR or SSPOC.")
 parser.add_argument("--basis", default="Identity", choices=["Identity", "SVD", "RandomProjection"], help="Determines the basis represent images in.")
 parser.add_argument("--sensors", "-s", default=128, type=int, help="Number of sensors to select from the original features.")
 parser.add_argument("--sensing-patch-size", "-p", default=4, type=int, help="Size of the token patches to be selected at native resolution.")
-parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
-parser.add_argument("--random-tokens", default=0, type=int, help="Number of random tokens to be selected.")
 parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
 parser.add_argument(
     "-b", "--batch-size", default=32, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
@@ -118,10 +118,6 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
     header = f"Epoch: [{epoch}]"
     for i, (image, target) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
-        if args.model == 'sparse_token_batch_vit_b_16': 
-            downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
-            if args.distributed: model.module.update_mask(downscaled_image, target)
-            else: model.update_mask(downscaled_image, target)
         if args.model == 'sensed_dropout_vit_b_16': 
             downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
             if args.distributed: model.module.patch_dropout.update_sensing_mask(downscaled_image, target)
@@ -225,7 +221,7 @@ def main(args):
         logging = torch.distributed.get_rank() == 0 and args.log_freq != 0
     else: logging = args.log_freq != 0
     if logging:
-        wandb.init(project='sparse-tokens', config=args)
+        wandb.init(project='sensed-dropout', config=args)
 
     device = torch.device(args.device)
 
@@ -245,7 +241,7 @@ def main(args):
         model = torchvision.models.get_model(args.model, image_size=128, weights=args.weights, num_classes=num_classes, 
                                              dropout=args.dropout, attention_dropout=args.attention_dropout)
     elif args.model == 'sensed_dropout_vit_b_16':
-        model = sensed_dropout_vit_b_16(image_size=128, tokens=args.tokens, train_sampling=args.train_sampling, 
+        model = sensed_dropout_vit_b_16(image_size=128, tokens=args.tokens, ratio=args.ratio, train_sampling=args.train_sampling, 
                                         inference_sampling=args.inference_sampling, basis=args.basis, sensors=args.sensors,
                                         sensing_patch_size=args.sensing_patch_size, weights=args.weights, num_classes=num_classes, 
                                         dropout=args.dropout, attention_dropout=args.attention_dropout)
