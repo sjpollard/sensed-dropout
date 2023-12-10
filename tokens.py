@@ -134,11 +134,11 @@ parser.add_argument(
 )
 
 def benchmark(args):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, download=args.download, greyscale=False)
+    dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=args.image_size, train=True, download=args.download)
     batch = next(iter(dataloader))
     X_train, y_train = batch[0], batch[1]
 
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, greyscale=False)
+    dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=args.image_size, train=False, download=args.download)
     batch = next(iter(dataloader))
     X_test, y_test = batch[0], batch[1]
 
@@ -176,7 +176,7 @@ def generate_tokens(args):
     batch = next(iter(dataloader))
     X_train, y_train = batch[0], batch[1]
 
-    dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=args.image_size, train=False)
+    dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=args.image_size, train=False, download=args.download)
     batch = next(iter(dataloader))
     X_test, y_test = batch[0], batch[1]
 

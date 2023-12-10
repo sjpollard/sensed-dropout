@@ -22,6 +22,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--model", default="resnet18", type=str, help="model name")
+parser.add_argument("--dataset", choices=["CIFAR10", "OxfordIIITPet"], default="CIFAR10", help="Specifies the dataset to be used.")
 parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
 parser.add_argument("--ratio", default=0.5, type=float, help="Ratio of sensed tokens to be used with sensed dropout.")
 parser.add_argument("--train-sampling", default="oracle", choices=["oracle", "random", "r", "c"], help="Determines whether pysensors uses SSPOR or SSPOC.")
@@ -222,7 +223,7 @@ def main(args):
         logging = torch.distributed.get_rank() == 0 and args.log_freq != 0
     else: logging = args.log_freq != 0
     if logging:
-        wandb.init(project='sensed-dropout', config=args)
+        wandb.init(project=f'sensed-dropout-{args.dataset}', config=args)
 
     device = torch.device(args.device)
 
@@ -232,8 +233,10 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    train_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, image_size=128, num_workers=args.workers, distributed=args.distributed)
-    test_dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, image_size=128, train=False, num_workers=args.workers, distributed=args.distributed)
+    train_dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=128, train=True, num_workers=args.workers, distributed=args.distributed)
+    test_dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=128, train=False, num_workers=args.workers, distributed=args.distributed)
+
+    print(next(iter(train_dataloader))[0].size())
 
     num_classes = len(train_dataloader.dataset.classes)
 
