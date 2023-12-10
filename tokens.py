@@ -25,8 +25,14 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 parser.add_argument(
+    "--dataset",
+    choices=["CIFAR10", "OxfordIIITPet"],
+    default="CIFAR10",
+    help="Specifies the dataset to be used."
+)
+parser.add_argument(
     "--batch-size", "-n",
-    default=None,
+    default=128,
     type=int,
     help="Number of values to process from the dataset for each fit."
 )
@@ -67,8 +73,14 @@ parser.add_argument(
     help="Strength of L1 regularisation."
 )
 parser.add_argument(
+    "--image-size",
+    default=None,
+    type=int,
+    help="Enforces a standard image size."
+)
+parser.add_argument(
     "--patch", "-p",
-    default=0,
+    default=4,
     type=int,
     help="Size of the token patches to be selected."
 )
@@ -160,11 +172,11 @@ def benchmark(args):
     df.to_csv(f'out/{filename}.csv', index=False)
 
 def generate_tokens(args):
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, download=args.download, greyscale=False)
+    dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=args.image_size, train=True, download=args.download)
     batch = next(iter(dataloader))
     X_train, y_train = batch[0], batch[1]
 
-    dataloader = data.get_dataloader(torchvision.datasets.CIFAR10, batch_size=args.batch_size, train=False, greyscale=False)
+    dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=args.image_size, train=False)
     batch = next(iter(dataloader))
     X_test, y_test = batch[0], batch[1]
 
