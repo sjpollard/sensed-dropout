@@ -236,8 +236,6 @@ def main(args):
     train_dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=128, train=True, num_workers=args.workers, distributed=args.distributed)
     test_dataloader = data.get_dataloader(dataset=args.dataset, batch_size=args.batch_size, image_size=128, train=False, num_workers=args.workers, distributed=args.distributed)
 
-    print(next(iter(train_dataloader))[0].size())
-
     num_classes = len(train_dataloader.dataset.classes)
 
     print("Creating model")

@@ -1,0 +1,124 @@
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --train-sampling oracle\
+    --inference-sampling oracle --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 32 --train-sampling random\
+    --inference-sampling oracle --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 16 --train-sampling random\
+    --inference-sampling oracle --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 8 --train-sampling random\
+    --inference-sampling oracle --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 32 --train-sampling oracle\
+    --inference-sampling random --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 16 --train-sampling oracle\
+    --inference-sampling random --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 8 --train-sampling oracle\
+    --inference-sampling random --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 32 --ratio 1.0 --train-sampling oracle\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 16 --ratio 1.0 --train-sampling oracle\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 8 --ratio 1.0 --train-sampling oracle\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 32 --ratio 0.5 --train-sampling oracle\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 16 --ratio 0.5 --train-sampling oracle\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 8 --ratio 0.5 --train-sampling oracle\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 32 --train-sampling random\
+    --inference-sampling random --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+    
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 16 --train-sampling random\
+    --inference-sampling random --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+    
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 8 --train-sampling random\
+    --inference-sampling random --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 32 --ratio 1.0 --train-sampling r\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 16 --ratio 1.0 --train-sampling r\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 8 --ratio 1.0 --train-sampling r\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 32 --ratio 0.5 --train-sampling r\
+    --inference-sampling oracle --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 16 --ratio 0.5 --train-sampling r\
+    --inference-sampling oracle --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 8 --ratio 0.5 --train-sampling r\
+    --inference-sampling oracle --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 32 --ratio 0.5 --train-sampling random\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 16 --ratio 0.5 --train-sampling random\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
+
+torchrun --nproc-per-node=2 train.py --model sensed_dropout_vit_b_16 --dataset CIFAR10 --tokens 8 --ratio 0.5 --train-sampling random\
+    --inference-sampling r --epochs 100 --batch-size 128 --opt adamw --lr 0.003 --wd 0.3\
+    --lr-scheduler cosineannealinglr --lr-warmup-method linear --lr-warmup-epochs 30 --lr-warmup-decay 0.033 --amp\
+    --label-smoothing 0.11 --clip-grad-norm 1 --device cuda --print-freq 100 --log-freq 10 --output-dir ''
