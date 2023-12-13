@@ -74,7 +74,6 @@ class SensedDropoutVisionTransformer(VisionTransformer):
         )
     
     def forward(self, x: torch.Tensor):
-        print(x.size())
         sampling = self.train_sampling if self.training else self.inference_sampling
         if sampling in ['r']:
             self.patch_dropout.update_sensing_mask(x)
@@ -90,8 +89,6 @@ class SensedDropoutVisionTransformer(VisionTransformer):
         x = x + self.pos_embedding
 
         x = self.patch_dropout(x)
-
-        print(x.size())
 
         x = self.encoder(x)
 

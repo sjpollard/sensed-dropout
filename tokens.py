@@ -1,9 +1,7 @@
 import os
 import argparse
-import time
 
 import torch
-import torchvision.datasets
 import torchshow as ts
 
 import numpy as np
@@ -17,6 +15,8 @@ from pysensors.reconstruction import SSPOR
 from pysensors.classification import SSPOC
 
 from patchify import patchify
+
+from typing import Optional
 
 import data
 
@@ -221,7 +221,7 @@ def get_model(fit_type: str, basis: str, modes: int, sensors: int, l1_penalty: f
     elif fit_type == 'c': model = SSPOC(basis=basis, n_sensors=sensors, l1_penalty=l1_penalty)
     return model
 
-def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: torch.Tensor, patch: int, tokens: int, strategy: str):
+def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: Optional[torch.Tensor], patch: int, tokens: int, strategy: str):
     n, c, h, w = x.size()
 
     if fit_type == 'r': model.fit(process_tensor(x), quiet=True)
