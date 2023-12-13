@@ -25,7 +25,7 @@ parser.add_argument("--model", default="resnet18", type=str, help="model name")
 parser.add_argument("--dataset", choices=["CIFAR10", "CIFAR100", "OxfordIIITPet"], default="CIFAR10", help="Specifies the dataset to be used.")
 parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
 parser.add_argument("--ratio", default=0.5, type=float, help="Ratio of sensed tokens to be used with sensed dropout.")
-parser.add_argument("--train-sampling", default="oracle", choices=["oracle", "random", "r", "c"], help="Determines whether pysensors uses SSPOR or SSPOC.")
+parser.add_argument("--train-sampling", default="oracle", choices=["oracle", "random", "r"], help="Determines whether pysensors uses SSPOR or SSPOC.")
 parser.add_argument("--inference-sampling", default="oracle", choices=["oracle", "random", "r"], help="Determines whether pysensors uses SSPOR or SSPOC.")
 parser.add_argument("--basis", default="Identity", choices=["Identity", "SVD", "RandomProjection"], help="Determines the basis represent images in.")
 parser.add_argument("--sensors", "-s", default=128, type=int, help="Number of sensors to select from the original features.")
@@ -119,10 +119,6 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
     header = f"Epoch: [{epoch}]"
     for i, (image, target) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
-        if args.model == 'sensed_dropout_vit_b_16' and args.train_sampling in ['r', 'c']: 
-            downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
-            if args.distributed: model.module.patch_dropout.update_sensing_mask(downscaled_image, target)
-            else: model.patch_dropout.update_sensing_mask(downscaled_image, target)
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
@@ -163,10 +159,6 @@ def evaluate(model, criterion, data_loader, device, args, print_freq=100, log_su
     num_processed_samples = 0
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
-            if args.model == 'sensed_dropout_vit_b_16' and args.inference_sampling in ['r']: 
-                downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
-                if args.distributed: model.module.patch_dropout.update_sensing_mask(downscaled_image, target)
-                else: model.patch_dropout.update_sensing_mask(downscaled_image, target)
             image = image.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
             output = model(image)

@@ -231,7 +231,7 @@ def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: torch.Tens
 
 def process_tensor(x: torch.Tensor):
     n = x.size(0)
-    return (x.sum(dim=1) / 3).squeeze().reshape((n, -1)).numpy()
+    return (x.sum(dim=1) / 3).squeeze().reshape((n, -1)).cpu().numpy()
 
 def mask_from_sensors(selected_sensors: list[int], patch: int, h: int, w: int, k: int, strategy: str='frequency'):    
     patch_shape = (patch, patch)

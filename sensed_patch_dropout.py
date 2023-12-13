@@ -1,4 +1,5 @@
 import torch
+import torchvision
 
 import tokens
 
@@ -44,19 +45,21 @@ class SensedPatchDropout(torch.nn.Module):
 
         return x
     
-    def update_sensing_mask(self, x, y):
+    def update_sensing_mask(self, x):
+        _ = ''
         sampling = self.train_sampling if self.training else self.inference_sampling
-        if sampling in ['r', 'c']:
+        if sampling in ['r']:
+            downscaled_x = torchvision.transforms.functional.resize(x, size=(32, 32), antialias=False)
             model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=x.size(0), 
                                      sensors=self.sensors, l1_penalty=self.l1_penalty)
-            self.token_mask = tokens.fit_mask(model, sampling, x, y, self.sensing_patch_size, int(self.ratio * self.tokens), self.strategy)
+            self.token_mask = tokens.fit_mask(model=model, fit_type=sampling, x=downscaled_x, y=_, patch=self.sensing_patch_size, tokens=int(self.ratio * self.tokens), strategy=self.strategy)
         return
 
     def get_mask(self, x):
         sampling = self.train_sampling if self.training else self.inference_sampling
         if sampling == 'random':
             return self.random_mask(x)
-        elif sampling in ['r', 'c']:
+        elif sampling in ['r']:
             return self.sensed_mask(x)
         else:
             return NotImplementedError(f"SensedPatchDropout does not support {sampling} sampling")

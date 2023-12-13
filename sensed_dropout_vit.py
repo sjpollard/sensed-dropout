@@ -48,6 +48,9 @@ class SensedDropoutVisionTransformer(VisionTransformer):
                          conv_stem_configs
         )
         
+        self.train_sampling = train_sampling
+        self.inference_sampling = inference_sampling
+
         self.pos_embedding = nn.Parameter(torch.empty(1, self.seq_length, hidden_dim).normal_(std=0.02))  # from BERT
 
         self.patch_dropout = SensedPatchDropout(
@@ -71,6 +74,11 @@ class SensedDropoutVisionTransformer(VisionTransformer):
         )
     
     def forward(self, x: torch.Tensor):
+        print(x.size())
+        sampling = self.train_sampling if self.training else self.inference_sampling
+        if sampling in ['r']:
+            self.patch_dropout.update_sensing_mask(x)
+
         # Reshape and permute the input tensor
         x = self._process_input(x)
         n = x.shape[0]
@@ -82,6 +90,8 @@ class SensedDropoutVisionTransformer(VisionTransformer):
         x = x + self.pos_embedding
 
         x = self.patch_dropout(x)
+
+        print(x.size())
 
         x = self.encoder(x)
 
