@@ -13,6 +13,8 @@ def get_dataloader(dataset: str, batch_size: int=128, image_size: int=None, trai
             os.makedirs(f'datasets')
     if dataset == 'CIFAR10':
         vision_dataset = torchvision.datasets.CIFAR10(f'datasets/{dataset}', train=train, transform=transform, download=download)
+    elif dataset == 'CIFAR100':
+        vision_dataset = torchvision.datasets.CIFAR100(f'datasets/{dataset}', train=train, transform=transform, download=download)
     elif dataset == 'OxfordIIITPet':
         vision_dataset = torchvision.datasets.OxfordIIITPet(f'datasets/{dataset}', split=('trainval' if train else 'test'), transform=transform, download=download)
     if distributed:

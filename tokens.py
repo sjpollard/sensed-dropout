@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--dataset",
-    choices=["CIFAR10", "OxfordIIITPet"],
+    choices=["CIFAR10", "CIFAR100", "OxfordIIITPet"],
     default="CIFAR10",
     help="Specifies the dataset to be used."
 )

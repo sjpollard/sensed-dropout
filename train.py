@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--model", default="resnet18", type=str, help="model name")
-parser.add_argument("--dataset", choices=["CIFAR10", "OxfordIIITPet"], default="CIFAR10", help="Specifies the dataset to be used.")
+parser.add_argument("--dataset", choices=["CIFAR10", "CIFAR100", "OxfordIIITPet"], default="CIFAR10", help="Specifies the dataset to be used.")
 parser.add_argument("--tokens", "-k", default=32, type=int, help="Number of tokens to be selected by PySensors.")
 parser.add_argument("--ratio", default=0.5, type=float, help="Ratio of sensed tokens to be used with sensed dropout.")
 parser.add_argument("--train-sampling", default="oracle", choices=["oracle", "random", "r", "c"], help="Determines whether pysensors uses SSPOR or SSPOC.")
@@ -119,7 +119,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
     header = f"Epoch: [{epoch}]"
     for i, (image, target) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
         start_time = time.time()
-        if args.model == 'sensed_dropout_vit_b_16': 
+        if args.model == 'sensed_dropout_vit_b_16' and args.train_sampling in ['r', 'c']: 
             downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
             if args.distributed: model.module.patch_dropout.update_sensing_mask(downscaled_image, target)
             else: model.patch_dropout.update_sensing_mask(downscaled_image, target)
@@ -163,7 +163,7 @@ def evaluate(model, criterion, data_loader, device, args, print_freq=100, log_su
     num_processed_samples = 0
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
-            if args.model == 'sensed_dropout_vit_b_16': 
+            if args.model == 'sensed_dropout_vit_b_16' and args.inference_sampling in ['r']: 
                 downscaled_image = torchvision.transforms.functional.resize(image, size=(32, 32), antialias=False)
                 if args.distributed: model.module.patch_dropout.update_sensing_mask(downscaled_image, target)
                 else: model.patch_dropout.update_sensing_mask(downscaled_image, target)
@@ -340,7 +340,7 @@ def main(args):
         # We disable the cudnn benchmarking because it can noticeably affect the accuracy
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
-        evaluate(model, criterion, test_dataloader, device=device, args=args, log_freq=args.log_freq, logging=logging)
+        evaluate(model, criterion, test_dataloader, device=device, args=args, logging=logging)
         return
 
     print("Start training")
