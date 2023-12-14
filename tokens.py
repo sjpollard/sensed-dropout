@@ -79,7 +79,7 @@ parser.add_argument(
     help="Enforces a standard image size."
 )
 parser.add_argument(
-    "--patch", "-p",
+    "--sensing-patch-size", "-p",
     default=4,
     type=int,
     help="Size of the token patches to be selected."
@@ -182,11 +182,11 @@ def generate_tokens(args):
 
     n, c, h, w = X_train.size()
 
-    mask_dim = (h // args.patch, w // args.patch)
+    mask_dim = (h // args.sensing_patch_size, w // args.sensing_patch_size)
     
     model = get_model(args.fit_type, args.basis, args.modes, args.sensors, args.l1_penalty)
 
-    token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.patch, args.tokens, args.strategy)
+    token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.sensing_patch_size, args.tokens, args.strategy)
 
     if args.show_basis: show_basis(model, h, w)
     if args.show_sensors: show_sensors(model, h, w)
@@ -203,7 +203,7 @@ def generate_tokens(args):
             print(f'Test accuracy: {accuracy_score(y_test.numpy(), y_pred) * 100}%')
     
     if args.output:
-        filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.patch}_k_{args.tokens}_{args.strategy}'
+        filename = f'n_{n}_t_{args.fit_type}_m_{args.modes}_s_{args.sensors}_p_{args.sensing_patch_size}_k_{args.tokens}_{args.strategy}'
         save_output(filename, model, h, w, token_mask, mask_dim)
 
 def get_basis(basis: str, n_basis_modes: int):
@@ -221,26 +221,33 @@ def get_model(fit_type: str, basis: str, modes: int, sensors: int, l1_penalty: f
     elif fit_type == 'c': model = SSPOC(basis=basis, n_sensors=sensors, l1_penalty=l1_penalty)
     return model
 
-def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: Optional[torch.Tensor], patch: int, tokens: int, strategy: str):
+def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: Optional[torch.Tensor], sensing_patch_size: int, tokens: int, strategy: str):
     n, c, h, w = x.size()
 
     if fit_type == 'r': model.fit(process_tensor(x), quiet=True)
     elif fit_type == 'c': model.fit(process_tensor(x), y.numpy(), quiet=True)
 
-    return mask_from_sensors(model.selected_sensors, patch, h, w, tokens, strategy)
+    return mask_from_sensors(model.selected_sensors, sensing_patch_size, h, w, tokens, strategy)
+
+def fit_mask_per_image(model: SSPOR, x: torch.Tensor, sensing_patch_size: int, tokens: int, strategy:str):
+    n, c, h, w = x.size()
+
+    list_of_masks = list(map(lambda x: mask_from_sensors(model.fit(np.expand_dims(x, axis=0), quiet=True).selected_sensors,
+                                                         sensing_patch_size, h, w, tokens, strategy), process_tensor(x)))
+    return torch.stack(list_of_masks)
 
 def process_tensor(x: torch.Tensor):
     n = x.size(0)
     return (x.sum(dim=1) / 3).squeeze().reshape((n, -1)).cpu().numpy()
 
-def mask_from_sensors(selected_sensors: list[int], patch: int, h: int, w: int, k: int, strategy: str='frequency'):    
-    patch_shape = (patch, patch)
+def mask_from_sensors(selected_sensors: list[int], sensing_patch_size: int, h: int, w: int, k: int, strategy: str='ranking'):    
+    patch_shape = (sensing_patch_size, sensing_patch_size)
 
     sensors = np.zeros(h * w)
     np.put(sensors, selected_sensors, 1)
     sensors = sensors.reshape((h, w))
 
-    patched_sensors = patchify(sensors, patch_shape, step=patch)
+    patched_sensors = patchify(sensors, patch_shape, step=sensing_patch_size)
 
     mask_h, mask_w = patched_sensors.shape[:2]
     token_mask = np.zeros((mask_h * mask_w), dtype=bool)
@@ -252,8 +259,8 @@ def mask_from_sensors(selected_sensors: list[int], patch: int, h: int, w: int, k
         non_zero_indices = np.nonzero(patch_sums.ravel())[0]
         token_indices = non_zero_indices[np.argsort(patch_sums.ravel()[non_zero_indices])][:-k-1:-1]
     elif strategy == 'ranking':
-        y_indices = selected_sensors // (patch * w)
-        x_indices = ((selected_sensors % (patch * w)) % w) // patch
+        y_indices = selected_sensors // (sensing_patch_size * w)
+        x_indices = ((selected_sensors % (sensing_patch_size * w)) % w) // sensing_patch_size
         patch_indices = y_indices * mask_w + x_indices
         unique_indices = pd.unique(patch_indices)
         diff = k - len(unique_indices)

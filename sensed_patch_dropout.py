@@ -48,10 +48,19 @@ class SensedPatchDropout(torch.nn.Module):
     def update_sensing_mask(self, x):
         sampling = self.train_sampling if self.training else self.inference_sampling
         if sampling in ['r']:
+            per_image = True
             downscaled_x = torchvision.transforms.functional.resize(x, size=(32, 32), antialias=False)
-            model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=x.size(0), 
-                                     sensors=self.sensors, l1_penalty=self.l1_penalty)
-            self.token_mask = tokens.fit_mask(model=model, fit_type=sampling, x=downscaled_x, y=None, patch=self.sensing_patch_size, tokens=int(self.ratio * self.tokens), strategy=self.strategy)
+            if per_image:
+                model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=1,
+                                         sensors=self.sensors, l1_penalty=self.l1_penalty)
+                self.token_mask = tokens.fit_mask_per_image(model=model, x=downscaled_x, sensing_patch_size=self.sensing_patch_size, 
+                                                            tokens=int(self.ratio * self.tokens), strategy=self.strategy)
+            else:
+                n = x.size(0)
+                model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=n, 
+                                         sensors=self.sensors, l1_penalty=self.l1_penalty)
+                self.token_mask = tokens.fit_mask(model=model, fit_type=sampling, x=downscaled_x, y=None, sensing_patch_size=self.sensing_patch_size,
+                                                  tokens=int(self.ratio * self.tokens), strategy=self.strategy).expand((n, -1))
         return
 
     def get_mask(self, x):
@@ -67,10 +76,10 @@ class SensedPatchDropout(torch.nn.Module):
         """
         Returns an iid-mask using uniform sampling
         """
-        N, L, D = x.shape
-        _L = L -1 # patch length (without CLS)
+        n, l, d = x.shape
+        _l = l - 1 # patch length (without CLS)
         
-        patch_mask = torch.rand(N, _L, device=x.device)
+        patch_mask = torch.rand(n, _l, device=x.device)
         patch_mask = torch.argsort(patch_mask, dim=1) + 1
         patch_mask = patch_mask[:, :self.tokens]
         if not self.token_shuffling:
@@ -78,18 +87,21 @@ class SensedPatchDropout(torch.nn.Module):
         return patch_mask
     
     def sensed_mask(self, x):
-        N, L, D = x.shape
-        _L = L -1 # patch length (without CLS)
+        n, l, d = x.shape
+        _l = l - 1 # patch length (without CLS)
 
         random_tokens = int((1 - self.ratio) * self.tokens)
+        sensed_tokens = int(self.ratio * self.tokens)
 
-        sensed_mask = self.token_mask.argwhere().squeeze()
+        sensed_mask = self.token_mask.argwhere()[:, 1].reshape(n, sensed_tokens)
 
-        zeros = (self.token_mask == 0).argwhere().squeeze()
-        shuffled_zeros = torch.rand(N, len(zeros))
+        zeros = (self.token_mask == 0).argwhere()[:, 1].reshape(n, _l - sensed_tokens)
+        #quit()
+        #TODO
+        shuffled_zeros = torch.rand(n, _l - sensed_tokens)
         sorted_zeros = torch.argsort(shuffled_zeros, dim=1)
-        random_mask = zeros[sorted_zeros][:, :random_tokens]
-        patch_mask = (torch.cat((random_mask, sensed_mask.expand(N, -1)), dim=1) + 1).to(x.device)
+        random_mask = torch.gather(zeros, 1, sorted_zeros)[:, :random_tokens]
+        patch_mask = (torch.cat((random_mask, sensed_mask), dim=1) + 1).to(x.device)
 
         if not self.token_shuffling:
             patch_mask = patch_mask.sort(1)[0]
