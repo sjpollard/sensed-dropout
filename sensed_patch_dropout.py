@@ -47,12 +47,13 @@ class SensedPatchDropout(torch.nn.Module):
     def update_sensing_mask(self, x):
         sampling = self.train_sampling if self.training else self.inference_sampling
         if sampling in ['r']:
-            per_image = True
+            chunk_batch = True
             downscaled_x = torchvision.transforms.functional.resize(x, size=(32, 32), antialias=False)
-            if per_image:
-                model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=1, sensors=self.sensors)
-                self.token_mask = tokens.fit_mask_per_image(model=model, x=downscaled_x, sensing_patch_size=self.sensing_patch_size, 
-                                                            tokens=int(self.ratio * self.tokens), strategy=self.strategy)
+            if chunk_batch:
+                sensed_tokens = int(self.ratio * self.tokens)
+                model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=sensed_tokens, sensors=self.sensors)
+                self.token_mask = tokens.fit_mask_to_chunks(model=model, x=downscaled_x, sensing_patch_size=self.sensing_patch_size, 
+                                                            tokens=sensed_tokens, strategy=self.strategy)
             else:
                 n = x.size(0)
                 model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=n, 
