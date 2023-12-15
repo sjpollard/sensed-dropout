@@ -22,7 +22,6 @@ class SensedPatchDropout(torch.nn.Module):
         self.basis = basis
         self.sensors = sensors
         self.sensing_patch_size = sensing_patch_size
-        self.l1_penalty = 0.001
         self.strategy = 'ranking'
         self.token_shuffling = token_shuffling
 
@@ -51,15 +50,14 @@ class SensedPatchDropout(torch.nn.Module):
             per_image = True
             downscaled_x = torchvision.transforms.functional.resize(x, size=(32, 32), antialias=False)
             if per_image:
-                model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=1,
-                                         sensors=self.sensors, l1_penalty=self.l1_penalty)
+                model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=1, sensors=self.sensors)
                 self.token_mask = tokens.fit_mask_per_image(model=model, x=downscaled_x, sensing_patch_size=self.sensing_patch_size, 
                                                             tokens=int(self.ratio * self.tokens), strategy=self.strategy)
             else:
                 n = x.size(0)
                 model = tokens.get_model(fit_type=sampling, basis=self.basis, modes=n, 
-                                         sensors=self.sensors, l1_penalty=self.l1_penalty)
-                self.token_mask = tokens.fit_mask(model=model, fit_type=sampling, x=downscaled_x, y=None, sensing_patch_size=self.sensing_patch_size,
+                                         sensors=self.sensors)
+                self.token_mask = tokens.fit_mask(model=model, fit_type=sampling, x=downscaled_x, sensing_patch_size=self.sensing_patch_size,
                                                   tokens=int(self.ratio * self.tokens), strategy=self.strategy).expand((n, -1))
         return
 
@@ -96,13 +94,10 @@ class SensedPatchDropout(torch.nn.Module):
         sensed_mask = self.token_mask.argwhere()[:, 1].reshape(n, sensed_tokens)
 
         zeros = (self.token_mask == 0).argwhere()[:, 1].reshape(n, _l - sensed_tokens)
-        #quit()
-        #TODO
         shuffled_zeros = torch.rand(n, _l - sensed_tokens)
         sorted_zeros = torch.argsort(shuffled_zeros, dim=1)
         random_mask = torch.gather(zeros, 1, sorted_zeros)[:, :random_tokens]
         patch_mask = (torch.cat((random_mask, sensed_mask), dim=1) + 1).to(x.device)
-
         if not self.token_shuffling:
             patch_mask = patch_mask.sort(1)[0]
         return patch_mask

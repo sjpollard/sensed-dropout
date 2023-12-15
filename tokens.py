@@ -186,7 +186,7 @@ def generate_tokens(args):
     
     model = get_model(args.fit_type, args.basis, args.modes, args.sensors, args.l1_penalty)
 
-    token_mask = fit_mask(model, args.fit_type, X_train, y_train, args.sensing_patch_size, args.tokens, args.strategy)
+    token_mask = fit_mask(model, args.fit_type, X_train, args.sensing_patch_size, args.tokens, args.strategy, y=y_train)
 
     if args.show_basis: show_basis(model, h, w)
     if args.show_sensors: show_sensors(model, h, w)
@@ -215,13 +215,13 @@ def get_basis(basis: str, n_basis_modes: int):
         return ps.basis.Identity(n_basis_modes=n_basis_modes)
     else: return None
 
-def get_model(fit_type: str, basis: str, modes: int, sensors: int, l1_penalty: float):
+def get_model(fit_type: str, basis: str, modes: int, sensors: int, l1_penalty: Optional[float]=None):
     basis = get_basis(basis, modes)
     if fit_type == 'r': model = SSPOR(basis=basis, n_sensors=sensors)
     elif fit_type == 'c': model = SSPOC(basis=basis, n_sensors=sensors, l1_penalty=l1_penalty)
     return model
 
-def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, y: Optional[torch.Tensor], sensing_patch_size: int, tokens: int, strategy: str):
+def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, sensing_patch_size: int, tokens: int, strategy: str, y: Optional[torch.Tensor]=None):
     n, c, h, w = x.size()
 
     if fit_type == 'r': model.fit(process_tensor(x), quiet=True)
