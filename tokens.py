@@ -236,7 +236,7 @@ def fit_mask_to_chunks(model: SSPOR, x: torch.Tensor, sensing_patch_size: int, t
     list_of_masks = list(map(lambda x: mask_from_sensors(model.fit(x, quiet=True).selected_sensors,
                                                          sensing_patch_size, h, w, tokens, strategy).expand((tokens, -1)), array_of_chunks))
 
-    return torch.stack(list_of_masks)
+    return torch.cat(list_of_masks)
 
 def process_tensor(x: torch.Tensor):
     n = x.size(0)
