@@ -232,7 +232,13 @@ def fit_mask(model: SSPOR | SSPOC, fit_type: str, x: torch.Tensor, sensing_patch
 def fit_mask_to_chunks(model: SSPOR, x: torch.Tensor, sensing_patch_size: int, tokens: int, strategy:str):
     n, c, h, w = x.size()
 
-    array_of_chunks = np.array_split(process_tensor(x), n // tokens)
+    rem = n % tokens
+
+    if rem != 0:
+        repeated = tokens - rem
+        array_of_chunks = np.array_split(process_tensor(torch.cat((x, x[:repeated]))), (n // tokens) + 1)
+    elif rem == 0:
+        array_of_chunks = np.array_split(process_tensor(x), n // tokens)
     list_of_masks = list(map(lambda x: mask_from_sensors(model.fit(x, quiet=True).selected_sensors,
                                                          sensing_patch_size, h, w, tokens, strategy).expand((tokens, -1)), array_of_chunks))
 
